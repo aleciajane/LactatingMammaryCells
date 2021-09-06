@@ -21,7 +21,7 @@ The repository is structured as follows:
 Overall samples from non-lactation associated mammary cells (NMC) were isolated from resting breast (RB) tissues and lactation associated mammary cells (LMC) consisted of human milk cells (HMC). Samples were sequenced in 3 separate batches. Batch 1 contains samples LMC1-4 and NMC1-4; Batch 2 contains samples LMC2B, LMC5-8 and NMC5-7; Batch 3 contains samples LMC9 and NMC1B.
 
 ## Links
-- Interactive [website](http://marionilab.cruk.cam.ac.uk/mammaryGland/) to explore data online
+- Interactive [website](http://bioinf.stemcells.cam.ac.uk:3838/khaled_wUFt1bHfmC/twigger/) to explore data online
 - Data can also be accessed at Array Express: 
 Batch 1: ([E-MTAB-9841](http://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-9841))
 Batch 2: ([E-MTAB-10855](http://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-10855))
