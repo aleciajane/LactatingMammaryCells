@@ -1,0 +1,178 @@
+---
+title: "Fig_3_d"
+author: "Alecia-Jane Twigger"
+date: "`r Sys.Date()`"
+output: html_document
+---
+Commands taken from tutorial at: https://htmlpreview.github.io/?https://github.com/sqjin/CellChat/blob/master/tutorial/CellChat-vignette.html
+
+**Setting up**
+
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+library(ggplot2)
+library(plyr)
+library(dplyr)
+
+#Bioc Packages
+library(scran)
+library(scater)
+library(CellChat)
+library(patchwork)
+library(RColorBrewer)
+
+#Riverplots etc.
+library(NMF)
+library(ggalluvial)
+
+#---#Read in annotated immune cells and subset for milk cells only#---#
+sce.immune <- readRDS("../../data/RB_HMC_merged/sce_immunesub.rds")
+sce.mini <- sce.immune[,colData(sce.immune)$State=="HM"]
+sce.mini
+#Add info about the clusters
+clusters <- c("C1","C10","C3","C5","C4", "C6","C11", "C12","C9", "C8", "C7", "C2")
+names <- c("Tcell","Tcell","Tcell","Tcell","Bcell_Plasma","Bcell_Plasma","Mono","Mono","Mono","Myeloid","Macro","Macro")
+sce.mini$Ident.Detailed <- mapvalues(colData(sce.mini)$GraphClusters.sub, clusters, names)
+pD.immune <- data.frame(Ident.Detailed =colData(sce.mini)$Ident.Detailed,row.names = colData(sce.mini)$Barcode)
+
+#---#Read in all data#---#
+sce <- readRDS("../../data/RB_HMC_merged/sce_all_nospike_2.rds")
+ClustCol <- as.data.frame(read.csv("../../data/RB_HMC_merged/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
+sce.milk <- sce[,colData(sce)$State=="HM"]
+sce.milk
+#subsetting just epithelial cells
+sce.epi <- sce.milk[,(colData(sce.milk)$Identity=="LC1"|colData(sce.milk)$Identity=="LC2")]
+colData(sce.epi)$Ident.Detailed <- colData(sce.epi)$Identity
+#subsetting just immune cells and annotating with info from the detailed analysis
+sce.imm <- sce.milk[,colData(sce.milk)$Identity=="IM"]
+colData(sce.imm) <- cbind(colData(sce.imm), pD.immune)
+
+#joining the data back together with the correct annotations
+sce.sub <- cbind(sce.epi,sce.imm)
+```
+*Check that data was read in and converted correctly*
+```{r}
+sce.sub
+```
+*Part I: Create the CellChat object*
+```{r}
+cellchat <- createCellChat(object = sce.sub, group.by = "Ident.Detailed")
+cellchat <- setIdent(cellchat, ident.use = "Ident.Detailed") # set "labels" as default cell identity
+levels(cellchat@idents) # show factor levels of the cell labels
+cellchat@idents = droplevels(cellchat@idents, exclude = setdiff(levels(cellchat@idents),unique(cellchat@idents))) #exclude unused labels
+levels(cellchat@idents) # check factor levels of the cell labels
+groupSize <- as.numeric(table(cellchat@idents)) # number of cells in each cell group
+
+#Set the ligand-receptor
+CellChatDB <- CellChatDB.human
+showDatabaseCategory(CellChatDB)
+dplyr::glimpse(CellChatDB$interaction) #Show the structure of the database
+CellChatDB.use <- CellChatDB # simply use the default CellChatDB
+cellchat@DB <- CellChatDB.use # set the used database in the object
+
+#Preprocessing expression data for cell-cell communication
+cellchat <- subsetData(cellchat) # This step is necessary even if using the whole database
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+cellchat <- projectData(cellchat, PPI.human) #project gene expression data onto PPI network (optional)
+```
+*Part II: Inference of cell-cell communication network*
+Compute the communication probability and infer cellular communication network
+```{r}
+cellchat <- computeCommunProb(cellchat)
+cellchat <- filterCommunication(cellchat, min.cells = 10) # Filter out the cell-cell communication if there are only few number of cells in certain cell groups
+#The cell-cell communication related with the following cell groups are excluded due to the few number of cells:  Plasma
+
+#exporting the ligand/receptors
+df.net <- subsetCommunication(cellchat)
+write.csv(df.net, file= "../../data/Supp_Tables/Supplementary_Table_5.csv")
+
+#Infer the cell-cell communication at a signaling pathway level
+cellchat <- computeCommunProbPathway(cellchat)
+cellchat <- aggregateNet(cellchat) #Calculate the aggregated cell-cell communication network
+
+#Save all signalling pathways showing significant communications
+Pthways <- cellchat@netP$pathways
+write.csv(Pthways, file= "../../data/CellChat_AllSigPathways.csv")
+
+#Save the CellChat object
+saveRDS(cellchat, file = "../../data/CellChat.milkCells.rds")
+```
+*Automatically save the plots of the all inferred network for quick exploration*
+Be aware that this will generate a lot of plots (all the significant ligand-receptor plots), however it is very useful in identifying pathways with lots of receptor-ligand pairs across many different cell subtypes.
+```{r}
+# Access all the signaling pathways showing significant communications
+pathways.show.all <- cellchat@netP$pathways
+# check the order of cell identity to set suitable vertex.receiver
+levels(cellchat@idents)
+vertex.receiver = seq(1,4)
+for (i in 1:length(pathways.show.all)) {
+  # Visualize communication network associated with both signaling pathway and individual L-R pairs
+  netVisual(cellchat, signaling = pathways.show.all[i], vertex.receiver = vertex.receiver, layout = "hierarchy")
+  # Compute and visualize the contribution of each ligand-receptor pair to the overall signaling pathway
+  gg <- netAnalysis_contribution(cellchat, signaling = pathways.show.all[i])
+  ggsave(filename=paste0(pathways.show.all[i], "_L-R_contribution.pdf"), plot=gg, width = 3, height = 2, units = 'in', dpi = 300)
+}
+```
+**Supp_Fig_3_d_ii**
+*This plot displays the number of signalling interactions between each cell type.*
+```{r}
+#groupSize <- as.numeric(table(cellchat@idents))
+#par(mfrow = c(1,2), xpd=TRUE)
+
+#plot interaction map
+num <- netVisual_circle(cellchat@net$count, vertex.weight = groupSize, weight.scale = T, label.edge= F, title.name = "Number of interactions", color.use = c("slateblue2", "plum", "lightsalmon3", "darkolivegreen", "#99A800", "gold4", "gold"),vertex.label.cex = 2)
+num
+pdf("../../data/Fig_3/Fig3dii.pdf", width=12, height=8)
+num
+dev.off()
+```
+**Supp_Fig_3_d_iii**
+*This plot displays interesting ligand-receptor pairs for different cell types.*
+```{r}
+#EGF
+pathways.show <- "EGF"
+pairLR.EGF <- extractEnrichedLR(cellchat, signaling = pathways.show, geneLR.return = FALSE)
+LR.show <- pairLR.EGF[5,] #HBEGF-EGFR
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+#MK
+pathways.show <- "MK"
+pairLR.MK <- extractEnrichedLR(cellchat, signaling = pathways.show, geneLR.return = FALSE)
+LR.show <- pairLR.MK[6,] #MDK-NCL
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+#SPP1
+pathways.show <- "SPP1"
+pairLR.SPP1 <- extractEnrichedLR(cellchat, signaling = pathways.show, geneLR.return = FALSE)
+LR.show <- pairLR.SPP1[1,] #SPP1-CD44
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+LR.show <- pairLR.SPP1[3,] #SPP1-(ITAV+ITGB6)
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+#MHC-II
+pathways.show <- "MHC-II"
+pairLR.MHCII <- extractEnrichedLR(cellchat, signaling = pathways.show, geneLR.return = FALSE)
+LR.show <- pairLR.MHCII[4,] #HLC-DMA-CD4
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+LR.show <- pairLR.MHCII[8,] #HLA-DRA-CD4
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+#MHC-I
+pathways.show <- "MHC-I"
+pairLR.MHCI <- extractEnrichedLR(cellchat, signaling = pathways.show, geneLR.return = FALSE)
+LR.show <- pairLR.MHCI[1,] #HLA-F-LILRB1
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+#GRN
+pathways.show <- "GRN"
+pairLR.GRN <- extractEnrichedLR(cellchat, signaling = pathways.show, geneLR.return = FALSE)
+LR.show <- pairLR.GRN[1,] #GRN-SORT1
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+#CSF
+pathways.show <- "CSF"
+pairLR.CSF <- extractEnrichedLR(cellchat, signaling = pathways.show, geneLR.return = FALSE)
+LR.show <- pairLR.CSF[1,] #IL34-CSF1R
+netVisual_individual(cellchat, signaling = pathways.show, pairLR.use = LR.show, layout = "circle", color.use= color.use)
+```
+*Return the session information*
+```{r}
+sessionInfo()
+```
+

@@ -1,0 +1,209 @@
+---
+title: "Fig2c"
+author: "Alecia-Jane Twigger"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+Make sure before running this script you have run "Fig_3_c.Rmd" as the output from that analysis is used to run GO term analysis.
+
+**Setting up**
+
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(ggplot2)
+
+#specific for GO term analysis
+library(topGO)
+library(org.Hs.eg.db)
+
+#specific for dendogram+heatmap
+library(cowplot)
+library(viridis)
+library(RColorBrewer)
+library(pheatmap)
+library(gridExtra)
+library(gridGraphics)
+
+#load data
+DEGS <- read.csv("../../data/Supp_Tables/Supplementary_Table_1.csv",stringsAsFactors = FALSE)
+```
+*Selecting highly significant genes for GO term analysis*
+Making data frame of significant genes (p< 10e-8) and stipulating the logFC threshold for both upregulated and downregulated genes
+```{r}
+#all significant genes
+sig.genes <- subset(DEGs, DEGs$FDR < 10e-8)
+dim(sig.genes) #3422
+
+#number of upregulated genes -> taking top 10%
+upgenes <- subset(sig.genes, sig.genes$logFC > 0.01)
+dim(upgenes) #1782
+nup <- 0.05*nrow(upgenes)
+nup #90
+#number of downregulated genes -> taking top 10%
+downgenes <- subset(sig.genes, sig.genes$logFC < -0.01)
+dim(downgenes) #1640
+ndown <- 0.05*nrow(downgenes)
+ndown #82
+```
+**Supp Fig 7ci**
+*GO term analysis of upregulated genes with biological process*
+```{r}
+#subset data frame for upgenes
+upgenes <- sig.genes[order(-sig.genes$logFC),]
+upgenes <- upgenes[1:nup,]
+summary(upgenes)
+dim(upgenes)
+
+#generating named vector "geneList" which 
+geneList <- as.integer(rownames(res$table) %in% rownames(upgenes))
+names(geneList) <- rownames(res$table)
+
+topDiffGenes <- function(allScore) {
+ return(allScore > 0.01)
+ }
+ x <- topDiffGenes(geneList)
+ sum(x)
+
+#Creating the "topGOdata" object with at least 10 genes associated with each GO term
+GOdata <- new("topGOdata",
+  description = "GO analysis of luminal cell clusters; HMCcluster1vs2",
+  ontology = "BP",
+  allGenes = geneList,
+  geneSel = topDiffGenes,
+  annot = annFUN.org,
+  mapping = "org.Hs.eg",
+  ID = "symbol",
+  nodeSize = 10)
+GOdata
+
+#To get the significant genes
+sg <- sigGenes(GOdata)
+str(sg)
+numSigGenes(GOdata)
+
+#Perform enrichment test, using the algorithm="weight01" (rather than algorithm = "classic") we take the GO hierarchy in to consideration
+resultFisher <- runTest(GOdata, algorithm = "weight01", statistic = "fisher")
+
+allRes <- GenTable(GOdata, classicFisher = resultFisher, orderBy = "resultFisher", ranksOf = "classicFisher", topNodes = 50, numChar=200)
+allRes
+
+#add significant genes to the table
+allRes$genes <- sapply(allRes$GO.ID, function(x)
+    {
+      genes<-genesInTerm(GOdata, x)
+      genes[[1]][genes[[1]] %in% sg] # myGenes is the queried gene list
+    })
+allRes$genes[which(allRes$topGO<0.0001)] # print those only with p-value < 0.05
+allRes$genes <-vapply(allRes$genes, paste, collapse = ", ", character(1L))
+
+#Finding genes of significant annotations
+length(usedGO(GOdata))
+
+#Adding GeneRatio to the table which is number of significant genes annotated to the particular term divided by all terms used in the GO term analysis + making sure classidFisher registers as numeric for colour scales and ensuring "Term" is recognised not as a character so the plots will display the variables in order
+allRes$GeneRatio <- allRes$Significant/length(sigGenes(GOdata))
+allRes$classicFisher <- as.numeric(allRes$classicFisher)
+allRes$Term <- factor(allRes$Term, levels=allRes$Term)
+write.csv(allRes, file= "../../data/Supp_Tables/Supplementary_Table_3.csv")
+
+allRes <- allRes %>% mutate(row = row_number())
+
+#Plotting GO terms as a bargraph, where x-axis is GeneRatio, colour is classicfisher p-value
+q <- ggplot(allRes[1:10,],
+      aes(reorder(Term,-row))) +
+      ylab("GeneRatio") +
+      xlab("Term") +
+      geom_bar(aes(weight = GeneRatio, fill=classicFisher)) +
+      coord_flip() +
+      theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_fill_gradientn(colours= c("orchid","plum1"))
+q
+ggsave(filename="../../data/RB_HMC_merged/Supp_Fig_7/Fig_7cii.pdf",width=6,height=3)
+```
+**Supp Fig 7cii**
+*GO term analysis of downregulated genes with biological process*
+```{r}
+downgenes <- sig.genes[order(sig.genes$logFC),]
+downgenes <- downgenes[1:ndown,]
+summary(downgenes)
+dim(downgenes)
+
+#generating named vector "geneList" which 
+geneList <- as.integer(rownames(res$table) %in% rownames(downgenes))
+names(geneList) <- rownames(res$table)
+
+#setting all genes >0.01 (i.e. =1, part of our subset) as "significant"
+topDiffGenes <- function(allScore) {
+ return(allScore > 0.01)
+ }
+ x <- topDiffGenes(geneList)
+ sum(x)
+
+#Creating the "topGOdata" object
+GOdata <- new("topGOdata",
+  description = "GO analysis of luminal cell clusters; HMCcluster1vs2",
+ # ontology = "MF",
+  ontology = "BP",
+  allGenes = geneList,
+  geneSel = topDiffGenes,
+  annot = annFUN.org,
+  mapping = "org.Hs.eg",
+  ID = "symbol",
+  nodeSize = 10)
+
+GOdata
+
+#To get the significant genes
+sg <- sigGenes(GOdata)
+str(sg)
+numSigGenes(GOdata)
+#60 significant genes
+
+#Perform enrichment test, using the algorithum="weight01" (rather than algorithm = "classic") we take the GO hierarchy in to consideration
+resultFisher <- runTest(GOdata, algorithm = "weight01", statistic = "fisher")
+
+allRes <- GenTable(GOdata, classicFisher = resultFisher, orderBy = "resultFisher", ranksOf = "classicFisher", topNodes = 50, numChar=200)
+allRes
+
+#add significant genes to the table
+allRes$genes <- sapply(allRes$GO.ID, function(x)
+    {
+      genes<-genesInTerm(GOdata, x)
+      genes[[1]][genes[[1]] %in% sg] # myGenes is the queried gene list
+    })
+allRes$genes[which(allRes$topGO<0.0001)] # print those only with p-value < 0.05
+allRes$genes <-vapply(allRes$genes, paste, collapse = ", ", character(1L))
+
+#Finding genes of significant annotations
+length(usedGO(GOdata))
+
+#Adding GeneRatio to the table which is number of significant genes annotated to the particular term divided by all terms used in the GO term analysis + making sure classidFisher registers as numeric for colour scales and ensuring "Term" is recognised not as a character so the plots will display the variables in order
+allRes$GeneRatio <- allRes$Significant/length(sigGenes(GOdata))
+allRes$classicFisher <- as.numeric(allRes$classicFisher)
+is.na(allRes$classicFisher) <- 0.0000000000001
+allRes$Term <- factor(allRes$Term, levels=allRes$Term)
+allRes
+write.csv(allRes, file= "../../data/Supp_Tables/Supplementary_Table_2.csv")
+
+allRes <- allRes %>% mutate(row = row_number())
+
+q <- ggplot(allRes[1:10,],
+      aes(reorder(Term,-row))) +
+      ylab("GeneRatio") +
+      xlab("Term") +
+      geom_bar(aes(weight = GeneRatio, fill=classicFisher)) +
+      coord_flip() +
+      theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_fill_gradientn(colours= c("slateblue2","lightgray"))
+q
+ggsave(filename="../../data/Supp_Fig_7/Fig_7ci.pdf",width=9,height=3)
+```
+*Saving session info*
+```{r}
+sessionInfo()
+```

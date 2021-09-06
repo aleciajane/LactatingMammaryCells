@@ -1,0 +1,431 @@
+---
+title: "Supp_Fig_4a"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(plyr)
+library(dplyr)
+library(scater)
+library(ggplot2)
+library(knitr)
+library("scatterplot3d")
+
+#specific for dendogram+heatmap
+library(cowplot)
+library(viridis)
+library(RColorBrewer)
+library(pheatmap)
+library(gridExtra)
+library(gridGraphics)
+library(dendextend)
+
+#load data
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+```
+**Supplementary Figure 4a**
+*UMAP for each NMC (HMC) sample*
+```{r}
+########################################################################################################################
+#-----#Each sample coloured individually#-----#
+pD <- as.data.frame(colData(sce))
+grey <- c("grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey")
+
+########################################################################################################################
+#---#Focusing first on HMCs#---#
+RB <- c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8")
+
+#--#HMC1#--#
+sample.set <- c(RB,"HMC2","HMC3","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","HMC1")
+colour.names <- c(grey,"salmon1")
+pD.HMC1 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC2","HMC3","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","HMC1"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC1, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC1.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC1)
+
+#--#HMC2#--#
+sample.set <- c(RB,"HMC1","HMC3","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","HMC2")
+colour.names <- c(grey,"peachpuff2")
+pD.HMC2 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC3","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","HMC2"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC2, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC2.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC2)
+
+#--#HMC3#--#
+sample.set <- c(RB,"HMC1","HMC2","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","HMC3")
+colour.names <- c(grey,"burlywood")
+pD.HMC3 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC2","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","HMC3"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC3, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC3.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC3)
+
+#--#HMC4#--#
+sample.set <- c(RB,"HMC1","HMC2","HMC3","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","HMC4")
+colour.names <- c(grey,"#F8766D")
+pD.HMC4 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC2","HMC3","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","HMC4"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC4, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC4.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC4)
+
+#--#HMC2B#--#
+sample.set <- c(RB,"HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC9","HMC2B")
+colour.names <- c(grey,"peachpuff3")
+pD.HMC2B <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC9","HMC2B"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC2B, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC2B.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC2B)
+
+#--#HMC5#--#
+sample.set <- c(RB,"HMC1","HMC2","HMC3","HMC4","HMC2B","HMC6","HMC7","HMC8","HMC9","HMC5")
+colour.names <- c(grey,"salmon2")
+pD.HMC5 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC2","HMC3","HMC4","HMC2B","HMC6","HMC7","HMC8","HMC9","HMC5"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC5, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC5.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC5)
+
+#--#HMC6#--#
+sample.set <- c(RB,"HMC1","HMC2","HMC3","HMC4","HMC5","HMC2B","HMC7","HMC8","HMC9","HMC6")
+colour.names <- c(grey,"pink1")
+pD.HMC6 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC2","HMC3","HMC4","HMC5","HMC2B","HMC7","HMC8","HMC9","HMC6"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC6, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC6.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC6)
+
+#--#HMC7#--#
+sample.set <- c(RB,"HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC2B","HMC8","HMC9","HMC7")
+colour.names <- c(grey,"indianred2")
+pD.HMC7 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC2B","HMC8","HMC9","HMC7"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC7, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC7.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC7)
+
+#--#HMC8#--#
+sample.set <- c(RB,"HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC2B","HMC9","HMC8")
+colour.names <- c(grey,"indianred4")
+pD.HMC8 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC2B","HMC9","HMC8"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC8, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC8.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC8)
+
+#--#HMC9#--#
+sample.set <- c(RB,"HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9")
+colour.names <- c(grey,"hotpink2")
+pD.HMC9 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8",
+                                                      "HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.HMC9, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC9.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.HMC9)
+```
+*UMAP for each NMC (RB) sample*
+```{r}
+########################################################################################################################
+#---#Focusing first on RBs#---#
+HM <- c("HMC1","HMC2","HMC3","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9")
+
+#--#RB1#--#
+sample.set <- c(HM,"RB2","RB3","RB4","RB5","RB6","RB7","RB8","RB1")
+colour.names <- c(grey,"steelblue3")
+pD.RB1 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9",
+                                                      "RB2","RB3","RB4","RB5","RB6","RB7","RB8","RB1"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.RB1, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB1.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.RB1)
+
+#--#RB2#--#
+sample.set <- c(HM,"RB1","RB3","RB4","RB5","RB6","RB7","RB8","RB2")
+colour.names <- c(grey,"slategray3")
+pD.RB2 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9",
+                                                      "RB1","RB3","RB4","RB5","RB6","RB7","RB8","RB2"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.RB2, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB2.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.RB2)
+
+#--#RB3#--#
+sample.set <- c(HM,"RB1","RB2","RB4","RB5","RB6","RB7","RB8","RB3")
+colour.names <- c(grey,"paleturquoise3")
+pD.RB3 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9",
+                                                      "RB1","RB2","RB4","RB5","RB6","RB7","RB8","RB3"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.RB3, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB3.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.RB3)
+
+#--#RB4#--#
+sample.set <- c(HM,"RB1","RB2","RB3","RB5","RB6","RB7","RB8","RB4")
+colour.names <- c(grey,"#00BFC4")
+pD.RB4 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9",
+                                                      "RB1","RB2","RB3","RB5","RB6","RB7","RB8","RB4"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.RB4, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB4.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.RB4)
+
+#--#RB5#--#
+sample.set <- c(HM,"RB1","RB2","RB3","RB4","RB6","RB7","RB8","RB5")
+colour.names <- c(grey,"turquoise")
+pD.RB5 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9",
+                                                      "RB1","RB2","RB3","RB4","RB6","RB7","RB8","RB5"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.RB5, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB5.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.RB5)
+
+#--#RB6#--#
+sample.set <- c(HM,"RB1","RB2","RB3","RB4","RB5","RB7","RB8","RB6")
+colour.names <- c(grey,"turquoise4")
+pD.RB6 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9",
+                                                      "RB1","RB2","RB3","RB4","RB5","RB7","RB8","RB6"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.RB6, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB6.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.RB6)
+
+#--#RB7#--#
+sample.set <- c(HM,"RB1","RB2","RB3","RB4","RB5","RB6","RB8","RB7")
+colour.names <- c(grey,"lightblue1")
+pD.RB7 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9",
+                                                      "RB1","RB2","RB3","RB4","RB5","RB6","RB8","RB7"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.RB7, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB7.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.RB7)
+
+#--#RB8#--#
+sample.set <- c(HM,"RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8")
+colour.names <- c(grey,"lightskyblue2")
+pD.RB8 <- dplyr::group_by(pD, Sample) %>%
+          ungroup(Sample) %>%
+          mutate(Sample=forcats::fct_relevel(Sample,c("HMC1","HMC2","HMC3","HMC4","HMC5","HMC6","HMC7","HMC8","HMC2B","HMC9",
+                                                      "RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8"))) %>%
+          arrange(Sample)
+UMAP <- ggplot(pD.RB8, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) + 
+    geom_point() + 
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAP") + scale_color_manual(values=setNames(colour.names, sample.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB8.pdf", width=10, height=8)
+UMAP
+dev.off()
+rm(pD.RB8)
+```

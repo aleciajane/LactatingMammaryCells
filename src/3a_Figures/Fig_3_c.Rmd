@@ -1,0 +1,190 @@
+---
+title: "Fig_3c"
+author: "Alecia-Jane Twigger"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(plyr)
+library(dplyr)
+library(scran)
+library(scater)
+library(ggplot2)
+library(knitr)
+
+#libraries for reformatting data for bulk DEG analysis
+library(SingleCellExperiment)
+library(edgeR)
+library(EnhancedVolcano)
+
+#specific for GO term analysis
+library(topGO)
+#library(org.Hs.eg.db)
+
+#specific for dendogram+heatmap
+library(cowplot)
+library(viridis)
+library(RColorBrewer)
+library(pheatmap)
+library(gridExtra)
+library(gridGraphics)
+
+#load data
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+pD <- as.data.frame(colData(sce))
+```
+*Subset immune cells*
+```{r}
+sce.sub <- sce[,(colData(sce)$Identity=="IM")]
+pD.sub <- as.data.frame(colData(sce.sub))
+```
+*Principle components analysis & subclustering of all immune cells*
+Finding the highly variable genes for downstream PCA and clustering analysis
+```{r}
+set.seed(60)
+dec.sce <- modelGeneVar(sce.sub)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+
+sce.hvg.sub <- sce.sub[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.sub
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
+```
+*Principle component analysis (PCA)*
+```{r}
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub, dimred="corrected")
+reducedDimNames(sce.hvg.sub)
+plotReducedDim(sce.hvg.sub, dimred="PCA", colour_by="Sample")
+```
+*Uniform manifold approximation and projection (UMAP)*
+```{r}
+set.seed(60)
+sce.hvg.sub <- runUMAP(sce.hvg.sub, dimred="PCA", min_dist=0.6, n_neighbors=18)
+plotReducedDim(sce.hvg.sub, dimred="UMAP", colour_by="Sample")
+```
+*Clustering the cells*
+```{r}
+g <- buildSNNGraph(sce.hvg.sub, k=15, use.dimred = "PCA")
+clust <- igraph::cluster_louvain(g)$membership
+table(clust)
+colData(sce.hvg.sub)$GraphClusters.sub <- factor(paste0("C",clust))
+colData(sce.sub)$GraphClusters.sub <- colData(sce.hvg.sub)$GraphClusters.sub
+
+plotReducedDim(sce.hvg.sub, dimred="UMAP", colour_by="GraphClusters.sub")
+plotReducedDim(sce.hvg.sub, dimred="UMAP", colour_by="GraphClusters")
+```
+*Adding PCA, UMAP and GraphClusterd to pD for ggplots visualisation*
+```{r}
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+UMAP <- as.data.frame(reducedDim(sce.hvg.sub, "UMAP"))
+pD.sub$GraphClusters.sub <- colData(sce.hvg.sub)$GraphClusters.sub
+
+pD.sub$PCA1.sub <- PCA$PC1
+pD.sub$PCA2.sub <- PCA$PC2
+pD.sub$PCA3.sub <- PCA$PC3
+pD.sub$PCA4.sub <- PCA$PC4
+pD.sub$UMAP1.sub <- UMAP$V1
+pD.sub$UMAP2.sub <- UMAP$V2
+colData(sce.sub)$UMAP1.sub <- UMAP$V1
+colData(sce.sub)$UMAP2.sub <- UMAP$V2
+
+saveRDS(sce.hvg.sub,file="../../data/sce_immunesub.rds")
+```
+**Fig 3c**
+*UMAP coloured by samples*
+```{r}
+#Sample colours
+sample.set <- c("HMC1", "HMC2", "HMC3","HMC4", "HMC2B","HMC5","HMC6","HMC7","HMC8", "HMC9","RB1", "RB2","RB3","RB4","RB5","RB6","RB7", "RB8")
+colour.names <- c("salmon1", "peachpuff2", "burlywood", "#F8766D","peachpuff3", "salmon2", "pink1",  "indianred2", "indianred4", "hotpink2", "steelblue3", "slategray3", "paleturquoise3","#00BFC4","turquoise", "turquoise4", "lightblue1", "lightskyblue2")
+
+#Generate UMAP
+UMAP.sample <- ggplot(pD.sub, aes(x=UMAP1, y=UMAP2, color=Sample))+
+    geom_point() +
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAPs") +
+    xlim(-5,5) +
+    ylim(5,17) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colour.names, sample.set))
+UMAP.sample 
+
+pdf("../../data/Fig_3/Fig_3c_UMAP_Sample.pdf", width=6, height=4)
+UMAP.sample
+dev.off()
+```
+*UMAP coloured by sub clusters*
+```{r}
+#GraphClusters.sub colours
+cluster.set.sub <- c("C1", "C2", "C3","C4", "C5", "C6","C7","C8", "C9","C10","C11", "C12", "C13","C14", "C15") 
+colours.sub <- c("lightgoldenrod3", "lightgoldenrod4", "olivedrab", "palegreen3","lemonchiffon2", "gold4", "#99A800","gold", "darkolivegreen",  "lightsalmon3","yellow4", "tan1", "palegreen4", "palegreen3", "orange1")
+
+#Generate UMAP
+UMAP.subcluster <- ggplot(pD.sub, aes(x=UMAP1, y=UMAP2, color=GraphClusters.sub))+
+    geom_point() +
+    xlab("UMAP1") +
+    ylab("UMAP2") +
+    ggtitle("UMAPs") +
+    xlim(-5,5) +
+    ylim(5,17) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.sub, cluster.set.sub))
+UMAP.subcluster
+
+pdf("../../data/Fig_3/Fig_3c_UMAP_GraphClusters.sub.pdf", width=6, height=4)
+UMAP.subcluster
+dev.off()
+```
+*Umap coloured by gene*
+```{r}
+#Load colours
+colour <- colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
+
+#Convert data
+m.imm <- as.matrix(logcounts(sce.sub))
+
+#Load gene list
+Genes <- c("CD3D", "JCHAIN", "CD68", "CD79A", "C1QB", "CD8A", "EOMES", "ICOS", "RORA", "FOXP3")
+
+myGraphs <- list()
+pdf("../../data/Fig_3/Fig_3c_UMAP_genes.pdf", width=6, height=5)
+for (Gene in Genes) {
+myGene <- as.numeric(m.imm[Gene,])
+
+umap.gene <- ggcells(sce.sub, aes(x=UMAP1.sub, y=UMAP2.sub, color=myGene))+
+    scale_color_gradientn(colors=colour) +
+    geom_point() +
+  #  xlab("UMAP 1") +
+  #  ylab("UMAP 2") +
+    ggtitle(Gene) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_blank(), legend.position = c(0.9,0.9), legend.title = element_blank(), plot.title = element_text(family="sans", face="bold.italic", size=45, vjust=-2, hjust=0.05), axis.text.x= element_blank(), axis.text.y = element_blank(), axis.title.x= element_blank(), axis.title.y= element_blank(), axis.ticks = element_blank())
+
+myGraphs[[Gene]] <- umap.gene
+print(myGraphs[[Gene]])
+}
+dev.off()
+```
+*Saving session info*
+```{r}
+sessionInfo()
+```

@@ -13,8 +13,12 @@ Findings from epidemiological studies have shown that breast cancer risk is infl
 The repository is structured as follows:
 
 - All scripts are contained in the [src](src/) folder
-- Quality control and initial cell filtering was done on individual batches (see [Individual_batches](src/Individual_batches) folder)
-- Scripts are organized in analytical scripts that produce e.g. csv outputs and scripts that were used to generate the figures of the paper
+- Initial analysis was conducted on the [Individual_batches](src/1_Individual_batches) before down stream analysis
+- To run downstream analysis run the scripts (in order) in the [Preparing_merged_data](src/2_Preparing_merged_data) to generate the final sce file
+- To replicate any of the analysis in the [Figures](src/3a_Figures) or [Supplementary_Figures](src/3b_Supplementary_Figs) follow the scripts indicated. Please note that in some special cases some scripts must be run prior, however these are indicated at the top of the script.
+
+## Sample overview
+Overall samples from non-lactation associated mammary cells (NMC) were isolated from resting breast (RB) tissues and lactation associated mammary cells (LMC) consisted of human milk cells (HMC). Samples were sequenced in 3 separate batches. Batch 1 contains samples LMC1-4 and NMC1-4; Batch 2 contains samples LMC2B, LMC5-8 and NMC5-7; Batch 3 contains samples LMC9 and NMC1B.
 
 ## Links
 - Interactive [website](http://marionilab.cruk.cam.ac.uk/mammaryGland/) to explore data online

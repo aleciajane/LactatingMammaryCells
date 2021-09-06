@@ -1,0 +1,227 @@
+---
+title: "B1_Quality_control"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+The purpose of this script is to perform quality control on lactation associated mammary cells (LMC) from human milk cells (HMC) and non-lactation associated mammary cells (NMC) from resting breast (RB) tissue samples.
+
+**Setting up**
+*Load Data & libraries*
+To begin, I have loaded required libraries and the SingleCellExperiment (sce) generated in "prepareExpressionList.R". Previously, the samples have been loaded into a SingleCellExperiment object from files generated from Cell Ranger. The DropUtils function was used to remove empty drops containing low levels of ambient RNA.
+
+The data file loaded here contains the counts matrix  -> counts(sce), phenotype data for each cell -> colData(sce) and data for each gene including if the gene is a mitochondrial gene (Mito) or transcription factor (TF) -> rowData(sce).
+```{r, message=FALSE}
+#Load libraries
+library(plyr)
+library(scran)
+library(scater)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(Rtsne)
+library(cowplot)
+library(Matrix)
+
+#Load data
+sce <- readRDS("../../data/Batch1/sce.rds")
+rownames(rowData(sce)) <- uniquifyFeatureNames(rowData(sce)$ID,rowData(sce)$Symbol)
+rownames(counts(sce)) <- rownames(rowData(sce))
+```
+*Examining the structure of the data*
+```{r}
+sce
+```
+*Adding sample info data*
+```{r}
+sample.names <- c("HMC1","HMC2","HMC3","HMC4","RB1","RB2","RB3","RB4")
+State <- c("HM", "HM", "HM", "HM", "RB", "RB", "RB", "RB")
+
+colData(sce)$State <- mapvalues(colData(sce)$Sample,sample.names, State)
+```
+*Calculating the total number of UMI's, genes and percentage of mitrochondrial RNA per cell*
+Using the addPerCellQC function, we now have appended colData to include the number of UMIs ("sum") and Genes ("detected") per cell, as well as providing information on the mitochondrial counts per cell ("subsets_Mito_detected") and percentage of mitochondrial counts per cell ("subsets_Mito_percent").
+```{r}
+sce <- addPerCellQC(sce, subsets=list(Mito=rowData(sce)$Mito))
+colData(sce)
+```
+**Pre-filter plots**
+
+*Visualising the number of UMIs and genes detected in each droplet prior to subsetting*
+Here we had to convert the colData(sce) into a data frame (pD) so that it can be visualised with ggplots
+
+Using different kinds of plots, we can visualise whether the cells in our data set are of high enough quality by plotting: 
+1. the library size which shows the number of UMI's expressed by cells within each sample
+2. the number of genes in cells within each sample
+3. the number of UMI and genes within the same cell
+4. comparison of % mitochondrial counts and UMI per cell
+5. comparison of % mitochondrial counts and genes per cell
+```{r}
+pD <- as.data.frame(colData(sce))
+
+#Setting colors to be used
+sample.set <- c("HMC1", "HMC2", "HMC3","HMC4", "RB1", "RB2","RB3","RB4")
+color.names <- c("salmon1", "peachpuff2", "burlywood", "#F8766D", "steelblue3", "slategray3", "paleturquoise3","#00BFC4")
+
+#1. Violin plot of UMI counts/cell per sample
+LibrarySize <- ggplot(pD, aes(x=Sample,y=sum, fill=Sample)) +
+    geom_violin(draw_quantiles=0.5)+
+    scale_y_log10() +
+    ylab("Total number of molecules") +
+    ggtitle("Number of Molecules") +
+    theme_bw() + scale_fill_manual(values=setNames(color.names, sample.set))
+LibrarySize
+pdf("../../data/Batch1/QualityControl_graphs/UMI_counts.pdf", width=12, height=8)
+LibrarySize
+dev.off()
+
+#2. Violin plot of genes/cell per sample
+genesDetected <- ggplot(pD, aes(x=Sample, y=detected, fill=Sample)) +
+  geom_violin(draw_quantiles=0.5) +
+  scale_y_log10() +
+  ylab("Total number of genes detected") +
+  ggtitle("Number of genes detected") +
+  theme_bw() + scale_fill_manual(values=setNames(color.names, sample.set))
+genesDetected
+pdf("../../data/Batch1/QualityControl_graphs/Gene_count.pdf", width=12, height=8)
+genesDetected
+dev.off()
+
+#3. Scatter plot showing UMI count and gene count per cell
+UmiGeneSum <- ggplot(pD, aes(x=sum, y=detected, color=subsets_Mito_percent)) + geom_point(shape=1) + scale_color_gradient(low="gray47", high="red")
+UmiGeneSum
+pdf("../../data/Batch1/QualityControl_graphs/UmiGeneSum_highUMI.pdf", width=12, height=8)
+UmiGeneSum
+dev.off()
+
+#4. Coloured scatter plot with mitochondrial counts compared to number of genes coloured by UMI count per cell
+cellViability <- ggplot(pD, aes(subsets_Mito_percent, detected, color=sum)) + geom_point(alpha=0.5) + 
+  scale_color_gradient(low="gray47", high="Blue") +
+    xlab("Percentage of mitochondrial reads") +
+    ggtitle("Cell Viability")
+cellViability
+pdf("../../data/Batch1/QualityControl_graphs/Cell_viability.pdf", width=12, height=8)
+cellViability
+dev.off()
+
+#5. Scatter plot with UMI count compared to % mitochondrial reads
+MitoUMI <- ggplot(pD, aes(x=subsets_Mito_percent, y=sum))+
+    geom_point(shape=1, alpha=1/2) +
+    xlab("Percentage of mitochondrial reads") +
+    ggtitle("%Mito vs. UMIs")
+MitoUMI
+pdf("../../data/Batch1/QualityControl_graphs/Mitocounts_vs_UMIs.pdf", width=12, height=8)
+MitoUMI
+dev.off()
+```
+**Filtering the data**
+Examining the cells number of UMI, gene and mitochondrial counts, I found that any cells with UMI < 1000 were unlikely to be cells. Therefore these were filtered out together with cells that had cells with large mitochondrial counts. This was done after rigorous analysis of the droplets containing UMI counts less than 1000 (by sub-clustering and comparing the cells with a Classifier)
+```{r}
+#Filtering using the quickPerCellQC function
+mt.outlier <- isOutlier(sce$subsets_Mito_percent, nmads = 1, type="higher")
+umi.outlier <- colData(sce)$sum < 1000
+colData(sce)$keep <- !mt.outlier & !umi.outlier
+
+#keeping only cells that should not be discarded
+sce.pass <- sce[,colData(sce)$keep]
+pD.pass <- as.data.frame(colData(sce.pass))
+```
+*Examining the kept vs. discarded cells in more detail*
+```{r}
+#Plotting kept vs. discarded cells
+gridExtra::grid.arrange(
+    plotColData(sce, x="Sample", y="sum", colour_by="keep",
+        other_fields="State") + facet_wrap(~State) + 
+        scale_y_log10() + ggtitle("Total count"),
+    plotColData(sce, x="Sample", y="detected", colour_by="keep", 
+        other_fields="State") + facet_wrap(~State) + 
+        scale_y_log10() + ggtitle("Detected features"),
+    plotColData(sce, x="Sample", y="subsets_Mito_percent", 
+        colour_by="keep", other_fields="State") + 
+        facet_wrap(~State) + ggtitle("Mito percent"),
+    ncol=1
+)
+
+#Looking to see whether discarded pool contains highly expressed marker genes for a specific cell type. Mitochondrial genes are in blue.
+library(edgeR)
+lost <- calculateAverage(counts(sce)[,!colData(sce)$keep])
+kept <- calculateAverage(counts(sce)[,colData(sce)$keep])
+logged <- cpm(cbind(lost, kept), log=TRUE, prior.count=2)
+logFC <- logged[,1] - logged[,2]
+abundance <- rowMeans(logged)
+plot(abundance, logFC, xlab="Average count", ylab="Log-FC (lost/kept)", pch=16)
+points(abundance[rowData(sce)$Mito], logFC[rowData(sce)$Mito], col="dodgerblue", pch=16)
+```
+*Re-visualising all cells but now looking at only the kept cells*
+```{r}
+#visualising all the kept cells
+LibrarySize %+% pD.pass
+genesDetected %+% pD.pass
+UmiGeneSum %+% pD.pass
+cellViability %+% pD.pass
+MitoUMI %+% pD.pass
+
+pdf("../../data/Batch1/QualityControl_graphs/Gene_count_clean.pdf", width=12, height=8)
+genesDetected %+% pD.pass
+dev.off()
+
+pdf("../../data/Batch1/QualityControl_graphs/UMI_count_clean.pdf", width=12, height=8)
+LibrarySize %+% pD.pass
+dev.off()
+
+pdf("../../data/Batch1/QualityControl_graphs/UmiGeneSum_clean.pdf", width=12, height=8)
+UmiGeneSum %+% pD.pass
+dev.off()
+
+pdf("../../data/Batch1/QualityControl_graphs/Cell_viability_clean.pdf", width=12, height=8)
+cellViability %+% pD.pass
+dev.off()
+
+pdf("../../data/Batch1/QualityControl_graphs/Mitocounts_vs_UMIs_clean.pdf", width=12, height=8)
+MitoUMI %+% pD.pass
+dev.off()
+```
+*Summary tables of cell pre and post filter*
+```{r}
+#Pre-filter cell summary
+sumry1 <- group_by(pD, Sample) %>%
+    dplyr::summarize("Total Number of cells_pre-filter"=n(),
+              "Total molecules_pre-filter"=median(sum),
+              "Genes Detected_pre-filter"=median(detected))
+kable(sumry1,caption="Number of cells pre-filter")
+write.csv(sumry1, "../../data/Batch1/QualityControl_graphs/Pre-filter_summary.csv")
+
+#Post-filter cell summary
+sumry <- group_by(pD.pass, Sample) %>%
+    dplyr::summarize("Number of cells"=n(),
+          "Total molecules"=median(sum),
+          "Genes Detected"=median(detected))
+kable(sumry,caption="Summary of QC parameters as median")
+write.csv(sumry, "../../data/Batch1/QualityControl_graphs/Post-filter_summary.csv")
+```
+**Normalization**
+
+*Only do this once filtering has been done.*
+Here we use a method of normalization that was developed by Aaron Lun and Karsten Bach (Lun et al. Genome Biology 2016)
+
+1. Firstly the data needs to be clustered into relatively arbitrary clusters that can be used in the downstream step to normalize the data.
+2. Using the command computeSumFactors(), we have deduced the size factor (sf) which will be used to multiply each cell in our matrix by the gene, so that each gene is normalized. We can visualise this by comparing the sf with the Umicounts of the cells. From the graph, we can see that actually these two factors are correlated, however  this is not a perfect correlation.
+3. Finally the normalization.
+```{r}
+clusters <- quickCluster(sce.pass, use.ranks="FALSE", method="igraph")
+table(clusters)
+sce.pass <- computeSumFactors(sce.pass, clusters=clusters)
+sf <- plot(log10(sizeFactors(sce.pass)),log10(colData(sce.pass)$sum),pch=19)
+sce.pass <- scater::logNormCounts(sce.pass)
+```
+*Saving the data*
+Saving the new data sets that have been filtered and normalised with the new name "sce_clean.rds".
+```{r}
+saveRDS(sce.pass,file="../../data/Batch1/sce_clean.rds")
+sessionInfo()
+```

@@ -1,0 +1,114 @@
+---
+title: "Fig_2e"
+author: "Alecia-Jane Twigger"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(scater)
+library(RColorBrewer)
+library(pheatmap)
+
+#load data
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
+
+#mapping epithelial cell types onto sce
+Classes <- c("LC1", "LC2", "LP","BA", "HR", "EN",  "VA","IM", "FB")
+Epithelial <- c("Luminal_HMC1", "Luminal_HMC2", "Luminal_LP","Basal", "Luminal_HR", "Stroma",  "Stroma","Stroma", "Stroma")
+colData(sce)$Epithelial.clusters <- mapvalues(colData(sce)$Identity, Classes, Epithelial)
+
+pD <- as.data.frame(colData(sce))
+```
+*Check that the data is loaded correctly*
+```{r}
+sce
+```
+**Figure 2ei**
+*Graph of STAT5A regulon genes*
+```{r}
+require(igraph)
+require(dplyr)
+require(ggraph)
+
+# Choose your gene of interest (i.e. one of the regulon.txt files)
+gene <- "STAT5A"
+# Number of top downstream targets
+topN <- 30
+# Nmber of top downstreams of target that is a TF itself
+topN_secondary <- 5
+
+adj <- read.csv("SCENIC_adj_subset1k.csv")
+trgts <- read.csv(paste0(gene,"(+)_regulon.txt"),header=FALSE)
+adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
+adj <- group_by(adj,TF) %>%
+    mutate(rnk=rank(-importance))
+adj <- adj[adj$rnk <= topN_secondary | adj$TF ==gene,]
+adj <- adj[adj$rnk <= topN,]
+istrgt <- adj$target[adj$TF==gene]
+adj <- adj[adj$TF %in% c(gene,istrgt),]
+
+colnames(adj) <- c("from","to","importance","rnk")
+g <- graph_from_data_frame(adj,directed=TRUE)
+
+ggraph(g, circular=TRUE) + 
+    geom_edge_link0(arrow = arrow(angle = 30, length = unit(0.09, "inches"),
+                              ends = "last", type = "closed"),
+		    color="grey50") +
+    geom_node_point(pch=21,fill="white",color="black") +
+    geom_node_text(aes(label = name), 
+		       size = 3, 
+		       vjust = 2) +
+    theme_void()
+```
+**Figure 2eiii**
+*Graph of SOX10 regulon genes*
+```{r}
+require(igraph)
+require(dplyr)
+require(ggraph)
+
+# Choose your gene of interest (i.e. one of the regulon.txt files)
+gene <- "SOX10"
+# Number of top downstream targets
+topN <- 30
+# Nmber of top downstreams of target that is a TF itself
+topN_secondary <- 5
+
+adj <- read.csv("SCENIC_adj_subset1k.csv")
+trgts <- read.csv(paste0(gene,"(+)_regulon.txt"),header=FALSE)
+adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
+adj <- group_by(adj,TF) %>%
+    mutate(rnk=rank(-importance))
+adj <- adj[adj$rnk <= topN_secondary | adj$TF ==gene,]
+adj <- adj[adj$rnk <= topN,]
+istrgt <- adj$target[adj$TF==gene]
+adj <- adj[adj$TF %in% c(gene,istrgt),]
+
+colnames(adj) <- c("from","to","importance","rnk")
+g <- graph_from_data_frame(adj,directed=TRUE)
+
+ggraph(g, circular=TRUE) + 
+    geom_edge_link0(arrow = arrow(angle = 30, length = unit(0.09, "inches"),
+                              ends = "last", type = "closed"),
+		    color="grey50") +
+    geom_node_point(pch=21,fill="white",color="black") +
+    geom_node_text(aes(label = name), 
+		       size = 3, 
+		       vjust = 2) +
+    theme_void()
+```
+*Saving session info*
+```{r}
+sessionInfo()
+```

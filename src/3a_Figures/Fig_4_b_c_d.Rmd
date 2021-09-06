@@ -1,0 +1,439 @@
+---
+title: "Fig_4_b_c_d"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(plyr)
+library(dplyr)
+library(scran)
+library(scater)
+library(ggplot2)
+library(knitr)
+
+#libraries for reformatting data for bulk DEG analysis
+library(SingleCellExperiment)
+library(edgeR)
+library(EnhancedVolcano)
+
+#specific for GO term analysis
+library(topGO)
+library(org.Hs.eg.db)
+
+#specific for dendogram+heatmap
+library(cowplot)
+library(viridis)
+library(RColorBrewer)
+library(pheatmap)
+library(gridExtra)
+library(gridGraphics)
+
+#load data
+sce <- readRDS("../../data/RB_HMC_merged/sce_all_nospike_2.rds")
+```
+Check that the data is loaded correctly
+```{r}
+sce
+```
+**Running DEG analysis**
+Generating psuedo-bulk samples from luminal HMCs which have equal numbers of cells per sample
+```{r}
+sce.sub <- sce[,((colData(sce)$Identity=="LC1" & colData(sce)$State=="HM")|(colData(sce)$Identity=="LC2" & colData(sce)$State=="HM")|(colData(sce)$Identity=="LP"& colData(sce)$State=="RB"))]
+
+#mapping cell types onto sce
+Type <- c("LC","LC","LP")
+Identity <- c("LC1","LC2","LP")
+colData(sce.sub)$Type <- mapvalues(colData(sce.sub)$Identity, Identity, Type)
+#Create pseudo-bulk samples from the Samples subsetted according to Identity
+summed <- aggregateAcrossCells(sce.sub,
+                               ids=DataFrame(label=sce.sub$Type,
+                                             sample=sce.sub$Sample))
+summed
+table(summed$sample,summed$label)
+```
+*DEG analysis on HMC luminal cells and Luminal Progenitors*
+```{r}
+y<- DGEList(counts(summed), samples = colData(summed))
+y
+
+#pre-processing
+discarded <- isOutlier(y$samples$lib.size, log=TRUE, type="lower")
+y <- y[,!discarded]
+summary(discarded)
+
+#remove lowly expressed genes
+keep <- filterByExpr(y, group=summed$Type)
+y <- y[keep,]
+summary(keep)
+
+#correct for compositional bias
+y <- calcNormFactors(y)
+y$samples
+
+#Stat modelling
+design <- model.matrix(~factor(Batches) + factor(Type), y$samples)
+design
+
+#estimate binomial (NB) dispersions
+y <- estimateDisp(y,design)
+summary(y$trended.dispersion)
+
+#Plot
+plotBCV(y)
+
+#something
+fit <- glmQLFit(y, design, robust=TRUE)
+summary(fit$var.prior)
+summary(fit$df.prior)
+
+#plot
+plotQLDisp(fit)
+
+#something part 2
+res <- glmQLFTest(fit, coef=ncol(design))
+summary(decideTests(res))
+
+#factor(Type)LC
+#Down             5168
+#NotSig           3750
+#Up               5183
+
+#Adding false discovery rate (FDR) values to the res$table and saving this as a new object DEGs with the rows in order of the FDR
+topTags(res)
+res$table$FDR <- p.adjust(res$table$PValue, method="BH")
+DEGs <- res$table[order(res$table$FDR),]
+dim(DEGs) #14101
+write.csv(DEGs, file= "../../data/Supp_Tables/Supp_Table_7.csv")
+
+##Specifying labels for top 10 genes
+sig.genes <- subset(DEGs, DEGs$FDR < 10e-8)
+
+upgenes <- sig.genes[order(-sig.genes$logFC),]
+uplab <- rownames(upgenes)[1:15]
+
+downgenes <- sig.genes[order(sig.genes$logFC),]
+downlab <- rownames(downgenes)[1:15]
+
+labels <- c(uplab, downlab)
+```
+**Fig_4_b**
+*Volcano plot of DEGs*
+```{r}
+#Volcano plot
+Volcano <- EnhancedVolcano(DEGs,
+lab = rownames(DEGs),
+x = 'logFC',
+y = 'FDR',
+title = 'DEGs HMC vs LP',
+subtitle = '',
+subtitleLabSize = 2,
+legendPosition = "bottom",
+pointSize = 3.0,
+labSize = 5.0,
+FCcutoff = 0,
+pCutoff = 10e-8,
+col = c("grey", "grey", "steelblue", "red"),
+selectLab = labels,
+#legendVisible = FALSE,
+drawConnectors = TRUE,
+typeConnectors = 'open')
+Volcano
+
+pdf("../../data/Fig_4/Fig_4_b.pdf", width=12, height=8)
+Volcano
+dev.off()
+```
+**GO term analysis**
+The DEG analysis has been run on all genes that had a lower p-value than 0.0001. No thresholding has been done on the logFC values.
+
+Making data frame of significant genes (p< 10e-8) and stipulating the logFC threshold for both upregulated and downregulated genes
+```{r}
+#all significant genes
+sig.genes <- subset(DEGs, DEGs$FDR < 10e-8)
+dim(sig.genes) #2068
+
+#number of upregulated genes -> taking top 10%
+upgenes <- subset(sig.genes, sig.genes$logFC > 0.01)
+dim(upgenes) #1146
+nup <- 0.1*nrow(upgenes) #114
+
+#number of downregulated genes -> taking top 10%
+downgenes <- subset(sig.genes, sig.genes$logFC < -0.01)
+dim(downgenes) #922
+ndown <- 0.1*nrow(downgenes) #92
+```
+*GO term analysis of upregulated genes*
+```{r}
+#--------#HMCvsLP_UpDEGs#--------#
+#subset data frame for upgenes
+upgenes <- sig.genes[order(-sig.genes$logFC),]
+upgenes <- upgenes[1:nup,]
+summary(upgenes) #logFC= 6.1-15.7
+dim(upgenes) #114
+
+#generating named vector "geneList" which 
+geneList <- as.integer(rownames(res$table) %in% rownames(upgenes))
+names(geneList) <- rownames(res$table)
+
+#checking that this worked
+count(geneList) #114
+
+#setting all genes >0.01 (i.e. =1, part of our subset) as "significant"
+topDiffGenes <- function(allScore) {
+ return(allScore > 0.01)
+ }
+ x <- topDiffGenes(geneList)
+ sum(x) ## the number of selected genes -> 114
+
+#----#Creating the "topGOdata" object with at least 10 genes associated with each GO term#----#
+GOdata <- new("topGOdata",
+  description = "GO analysis of luminal cell clusters; HMCvsLP",
+ # ontology = "MF",
+  ontology = "BP",
+  allGenes = geneList,
+  geneSel = topDiffGenes,
+  annot = annFUN.org,
+  mapping = "org.Hs.eg",
+  ID = "symbol",
+  nodeSize = 10)
+GOdata
+
+#To get the significant genes
+sg <- sigGenes(GOdata)
+str(sg)
+numSigGenes(GOdata)
+#86 significant genes
+
+#Perform enrichment test, using the algorithum="weight01" (rather than algorithm = "classic") we take the GO hierarchy in to consideration
+resultFisher <- runTest(GOdata, algorithm = "weight01", statistic = "fisher")
+
+allRes <- GenTable(GOdata, classicFisher = resultFisher, orderBy = "resultFisher", ranksOf = "classicFisher", topNodes = 50, numChar=200)
+allRes
+
+#add significant genes to the table
+allRes$genes <- sapply(allRes$GO.ID, function(x)
+    {
+      genes<-genesInTerm(GOdata, x)
+      genes[[1]][genes[[1]] %in% sg] # myGenes is the queried gene list
+    })
+allRes$genes[which(allRes$topGO<0.0001)] # print those only with p-value < 0.05
+allRes$genes <-vapply(allRes$genes, paste, collapse = ", ", character(1L))
+
+#visualising the top nodes
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 5, useInfo ='all')
+printGraph(GOdata, resultFisher, firstSigNodes = 5, fn.prefix = "tGO", useInfo = "all", pdfSW = TRUE)
+
+#Finding genes of significant annotations
+length(usedGO(GOdata))
+#5881
+
+#Adding GeneRatio to the table which is number of significant genes annotated to the particular term divided by all terms used in the GO term analysis + making sure classidFisher registers as numeric for colour scales and ensuring "Term" is recognised not as a character so the plots will display the variables in order
+allRes$GeneRatio <- allRes$Significant/length(sigGenes(GOdata))
+allRes$classicFisher <- as.numeric(allRes$classicFisher)
+allRes$Term <- factor(allRes$Term, levels=allRes$Term)
+allRes
+
+write.csv(allRes, file= "../../data/Supp_Tables/Supplementary_Table_9.csv")
+```
+*GO term analysis of downregulated genes*
+```{r}
+#--------#HMCvsLP_DownDEGs#--------#
+downgenes <- sig.genes[order(sig.genes$logFC),]
+downgenes <- downgenes[1:ndown,]
+summary(downgenes)
+dim(downgenes)
+
+#generating named vector "geneList" which 
+geneList <- as.integer(rownames(res$table) %in% rownames(downgenes))
+names(geneList) <- rownames(res$table)
+
+#setting all genes >0.01 (i.e. =1, part of our subset) as "significant"
+topDiffGenes <- function(allScore) {
+ return(allScore > 0.01)
+ }
+ x <- topDiffGenes(geneList)
+ sum(x)
+
+#Creating the "topGOdata" object
+GOdata <- new("topGOdata",
+  description = "GO analysis of luminal cell clusters; HMCvsLP",
+ # ontology = "MF",
+  ontology = "BP",
+  allGenes = geneList,
+  geneSel = topDiffGenes,
+  annot = annFUN.org,
+  mapping = "org.Hs.eg",
+  ID = "symbol",
+  nodeSize = 10)
+
+GOdata
+
+#To get the significant genes
+sg <- sigGenes(GOdata)
+str(sg)
+numSigGenes(GOdata)
+#92 significant genes
+
+#Perform enrichment test, using the algorithum="weight01" (rather than algorithm = "classic") we take the GO hierarchy in to consideration
+resultFisher <- runTest(GOdata, algorithm = "weight01", statistic = "fisher")
+
+allRes <- GenTable(GOdata, classicFisher = resultFisher, orderBy = "resultFisher", ranksOf = "classicFisher", topNodes = 50, numChar=200)
+allRes
+
+#add significant genes to the table
+allRes$genes <- sapply(allRes$GO.ID, function(x)
+    {
+      genes<-genesInTerm(GOdata, x)
+      genes[[1]][genes[[1]] %in% sg] # myGenes is the queried gene list
+    })
+allRes$genes[which(allRes$topGO<0.0001)] # print those only with p-value < 0.05
+allRes$genes <-vapply(allRes$genes, paste, collapse = ", ", character(1L))
+
+#visualising the top nodes
+showSigOfNodes(GOdata, score(resultFisher), firstSigNodes = 5, useInfo ='all')
+printGraph(GOdata, resultFisher, firstSigNodes = 5, fn.prefix = "tGO", useInfo = "all", pdfSW = TRUE)
+
+#Finding genes of significant annotations
+length(usedGO(GOdata))
+#5881
+
+#Adding GeneRatio to the table which is number of significant genes annotated to the particular term divided by all terms used in the GO term analysis + making sure classidFisher registers as numeric for colour scales and ensuring "Term" is recognised not as a character so the plots will display the variables in order
+allRes$GeneRatio <- allRes$Significant/length(sigGenes(GOdata))
+allRes$classicFisher <- as.numeric(allRes$classicFisher)
+is.na(allRes$classicFisher) <- 0.0000000000001
+allRes$Term <- factor(allRes$Term, levels=allRes$Term)
+allRes
+
+write.csv(allRes, file= "../../data/Supp_Tables/Supplementary_Table_8.csv")
+```
+**Fig_4c**
+*GO term analysis of upregulated genes_higher in LP (vs HMC)*
+```{r}
+#I curated the GO terms in Supplementary_Table_9 to generate a shortened list of GO terms to display. These were loaded
+UpGO <- read.csv("../../data/Supp_Tables/Supplementary_Table_9_mini.csv",stringsAsFactors = FALSE) %>% mutate(row = row_number())
+
+#Plotting the GO terms in a coloured bar chart:
+q <- ggplot(UpGO,
+      aes(reorder(Term,-row))) +
+      ylab("GeneRatio") +
+      xlab("Term") +
+      geom_bar(aes(weight = GeneRatio, fill=classicFisher)) +
+      coord_flip() +
+      theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_fill_gradientn(colours= c("slateblue2","plum"))
+q
+ggsave(filename="../../data/Fig_4/Fig_4_c_i.pdf",width=7,height=4)
+```
+*GO term analysis of downregulated genes_higher in HMC (vs LP)*
+```{r}
+#I curated the GO terms in Supplementary_Table_8 to generate a shortened list of GO terms to display. These were loaded
+DownGO <- read.csv("../../data/Supp_Tables/Supplementary_Table_8_mini.csv",stringsAsFactors = FALSE) %>% mutate(row = row_number())
+
+#Plotting the GO terms in a coloured bar chart:
+q <- ggplot(DownGO,
+      aes(reorder(Term,-row))) +
+      ylab("GeneRatio") +
+      xlab("Term") +
+      geom_bar(aes(weight = GeneRatio, fill=classicFisher)) +
+      coord_flip() +
+      theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_fill_gradientn(colours= c("violetred3","mistyrose2"))
+q
+ggsave(filename="../../data/Fig_4/Fig_4_c_ii.pdf",width=7,height=4)
+```
+**Fig 4d**
+*Making bubble plots of selected genes*
+```{r}
+#mapping cell types onto sce
+Classes <- c("LC1", "LC2", "LP",  "BA",  "HR",  "EN",  "VA",  "IM",  "FB" )
+Others <- c("LC", "LC", "LP", "Other", "Other", "Other", "Other", "Other", "Other")
+colData(sce)$Identity.sub <- mapvalues(colData(sce)$Identity, Classes, Others)
+
+pD <- as.data.frame(colData(sce))
+m <- logcounts(sce)
+
+markers <- c("MMP7", "PTN", "LIF", "WNT6", "FGFR2", "DSG1", "CLDN10", "FAT1", "ATP1B1", "KCNK5", "SLC30A2", "SLC39A12", "ACACB","BTN1A1", "SERPINF2", "OLAH", "LPL","THRSP", "GPAT2", "MOGAT1")
+
+grps <- colData(sce)$Identity.sub
+table(grps)
+
+bubblePlot <- function(m, markers, grps, cluster_col=FALSE,
+cluster_row=FALSE, angled=TRUE, zscores=FALSE) {
+  require(reshape2)
+     out <- data.frame(numeric(length(markers)))
+     colnames(out) <- levels(factor(grps))[1]
+     out.freq <- out
+     for (cond in levels(factor(grps))) {
+     expr <- rowMeans(m[markers,grps==cond])
+     expr.freq <- rowMeans(m[markers,grps==cond]>0)
+     colname <- cond
+     out[,colname] <- expr
+     out.freq[,colname] <- expr.freq
+     }
+     out <- as.matrix(out)
+     out.freq <- as.matrix(out.freq)
+     rownames(out.freq) <- rownames(out) <- markers
+     if(zscores) {
+     out <- t(scale(t(out)))
+     } else {
+     out <- out/rowMax(out)
+     }
+     out.long <- melt(out,value.name="Mean")
+     out.freq <- melt(out.freq,value.name="Frequency")
+     out.long$Frequency <- out.freq$Frequency * 100
+
+     if (cluster_row) {
+     dis <- dist(out)
+     hclst <- hclust(dis,method="ward.D2")
+     lvlsVar1 <- rownames(out)[hclst$order]
+     out.long$Var1 <- factor(out.long$Var1, levels=lvlsVar1)
+     }
+     if (cluster_col) {
+     dis <- dist(t(out))
+     hclst <- hclust(dis,method="ward.D2")
+     lvlsVar2 <- colnames(out)[hclst$order]
+     out.long$Var2 <- factor(out.long$Var2, levels=lvlsVar2)
+     }
+     p <- ggplot(out.long, aes(x=Var2, y=Var1, color=Mean,
+size=Frequency)) +
+     geom_point() +
+     scale_color_gradient2(low="blue",high="red", mid="grey") +
+    # scale_color_distiller(palette="Spectral") +
+     scale_size(range=c(0,3)) +
+theme(panel.grid.major=element_line(colour="grey80",size=0.1,linetype="dashed"),
+       axis.text=element_text(size=7),
+       legend.position="bottom",
+       legend.direction="horizontal") +
+     xlab("") +
+     ylab("")
+     if (angled) {
+     p <- p + theme(axis.text.x=element_text(size=9, angle=45, hjust=1,
+vjust=1))
+     }
+     return(p)
+}
+
+#now this is a normal ggplot that can be manupulated with gg-commands
+Bubble.gene <- bubblePlot(m, markers, grps) + coord_flip() +# scale_x_reverse() +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.text.x = element_text(angle = 90), axis.line = element_line(colour = "black"))
+
+pdf("../../data/Fig_4/Fig_4_d.pdf", width=5, height=3.5)
+Bubble.gene
+dev.off()
+```
+*Saving session info*
+```{r}
+sessionInfo()
+```

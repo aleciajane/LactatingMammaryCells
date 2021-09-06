@@ -1,0 +1,87 @@
+---
+title: "Fig_2_a_b"
+author: "Alecia-Jane Twigger"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(scater)
+library(RColorBrewer)
+library(pheatmap)
+
+#load data
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
+
+#mapping epithelial cell types onto sce
+Classes <- c("LC1", "LC2", "LP","BA", "HR", "EN",  "VA","IM", "FB")
+Epithelial <- c("Luminal_HMC1", "Luminal_HMC2", "Luminal_LP","Basal", "Luminal_HR", "Stroma",  "Stroma","Stroma", "Stroma")
+colData(sce)$Epithelial.clusters <- mapvalues(colData(sce)$Identity, Classes, Epithelial)
+
+pD <- as.data.frame(colData(sce))
+```
+*Check that the data is loaded correctly*
+```{r}
+sce
+```
+**Figure 2a**
+*UMAP colored by cell type*
+```{r}
+#Load epithelial clusters colors
+Epithelial <- c("Luminal_HMC1", "Luminal_HMC2", "Luminal_LP","Basal", "Luminal_HR","Stroma")
+colours.epithelial <- c("slateblue2","plum", "violetred3", "tomato1",  "palevioletred3", "gray90")
+
+#Make UMAP
+UMAP <- ggcells(sce, mapping=aes(x=UMAP1, y=UMAP2, color=Epithelial.clusters)) + 
+    geom_point() + scale_color_manual(values=setNames(colours.epithelial, Epithelial)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+
+#Save as PDF
+pdf("../../data/Fig_2/Fig_2a.pdf", width=12, height=8)
+UMAP
+dev.off()
+```
+**Figure 2b**
+*Individual UMAPs coloured by gene of interest for epithelial cells*
+```{r}
+#Load colours
+colour <- colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
+
+Genes <- c("ACTA2","MME","TP63","ITGA6","EPCAM","KRT18","ELF3","ZEB1","PRLR","PGR","ESR1","SLPI","ALDH1A3","CD24","S100A9","LALBA","CSN2","CSN3","MT1E","IL6R","SLC30A1","FOLR1","FBP1","HLA-DPB1")
+
+myGraphs <- list()
+
+pdf("../../data/Fig_2/Fig_2b.pdf", width=8, height=6.5)
+for (Gene in Genes) {
+myGene <- as.numeric(logcounts(sce)[Gene,])
+
+umap.gene <- ggplot(pD, aes(x=UMAP1, y=UMAP2, color=myGene))+
+    scale_color_gradientn(colors=colour) +
+    geom_point() +
+    ggtitle(Gene) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_blank(), legend.position = c(0.9, 0.9), legend.title = element_blank(), plot.title = element_text(family="sans", face="bold.italic", size=45, vjust=-2, hjust=0.1), axis.text.x= element_blank(), axis.text.y = element_blank(), axis.title.x= element_blank(), axis.title.y= element_blank(), axis.ticks = element_blank())
+
+plot(umap.gene)
+
+myGraphs[[Gene]] <- umap.gene
+
+}
+dev.off()
+```
+*Saving session info*
+```{r}
+sessionInfo()
+```

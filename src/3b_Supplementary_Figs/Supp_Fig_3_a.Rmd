@@ -1,0 +1,89 @@
+---
+title: "Supp_Fig_3a"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(plyr)
+library(dplyr)
+library(scater)
+library(ggplot2)
+
+#load data
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+```
+
+**Supplementary Figure 3a**
+UMAPs coloured by Batch
+```{r}
+#--------------#UMAP coloured by sample#--------------#
+#All samples coloured
+batch.set <- c("B1", "B2", "B3")
+colourbatch.names <- c("olivedrab4","yellow3","navy")
+
+#--#B1#--#
+B1 <- dplyr::group_by(pD, Batches) %>%
+          ungroup(Batches) %>%
+          mutate(Batches=forcats::fct_relevel(Batches,c("B2","B3","B1"))) %>%
+          arrange(Batches)
+UMAP <- ggplot(B1, mapping=aes(x=UMAP1, y=UMAP2, color=Batches)) + 
+    geom_point() + scale_color_manual(values=setNames(colourbatch.names, batch.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Batch_B1.pdf", width=12, height=8)
+UMAP
+dev.off()
+
+#--#B1b#--#
+B1b <- dplyr::group_by(pD, Batches) %>%
+          ungroup(Batches) %>%
+          mutate(Batches=forcats::fct_relevel(Batches,c("B3","B2","B1"))) %>%
+          arrange(Batches)
+UMAP <- ggplot(B1b, mapping=aes(x=UMAP1, y=UMAP2, color=Batches)) + 
+    geom_point() + scale_color_manual(values=setNames(colourbatch.names, batch.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Batch_B1b.pdf", width=12, height=8)
+UMAP
+dev.off()
+
+#--#B2#--#
+B2 <- dplyr::group_by(pD, Batches) %>%
+          ungroup(Batches) %>%
+          mutate(Batches=forcats::fct_relevel(Batches,c("B3","B1","B2"))) %>%
+          arrange(Batches)
+UMAP <- ggplot(B2, mapping=aes(x=UMAP1, y=UMAP2, color=Batches)) + 
+    geom_point() + scale_color_manual(values=setNames(colourbatch.names, batch.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Batch_B2.pdf", width=12, height=8)
+UMAP
+dev.off()
+
+#--#B3#--#
+B3 <- dplyr::group_by(pD, Batches) %>%
+          ungroup(Batches) %>%
+          mutate(Batches=forcats::fct_relevel(Batches,c("B2","B1","B3"))) %>%
+          arrange(Batches)
+UMAP <- ggplot(B3, mapping=aes(x=UMAP1, y=UMAP2, color=Batches)) + 
+    geom_point() + scale_color_manual(values=setNames(colourbatch.names, batch.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Batch_B3.pdf", width=12, height=8)
+UMAP
+dev.off()
+```

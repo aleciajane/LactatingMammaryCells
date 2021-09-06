@@ -1,0 +1,124 @@
+---
+title: "Removing_spikeIns_and_reclustering"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(plyr)
+library(dplyr)
+library(scater)
+library(ggplot2)
+library(knitr)
+library("scatterplot3d")
+
+#specific for dendogram+heatmap
+library(cowplot)
+library(viridis)
+library(RColorBrewer)
+library(pheatmap)
+library(gridExtra)
+library(gridGraphics)
+library(dendextend)
+
+#load data
+sce <- readRDS("../../data/sce_all_final_MilkCorrected_2.rds")
+ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
+
+#mapping cell types onto sce
+Clusters <- ClustCol$Clusters
+Classes <- ClustCol$Identity
+colData(sce)$Identity <- mapvalues(colData(sce)$Clusters, Clusters, Classes)
+```
+*Check that the data is loaded correctly*
+```{r}
+sce
+```
+*Setting colour charts*
+```{r}
+#PCA + UMAP sample colours
+
+sample.set <- c("HMC1", "HMC2", "HMC3","HMC4", "HMC2B","HMC5","HMC6","HMC7","HMC8", "HMC9","RB1", "RB2","RB3","RB4","RB5","RB6","RB7", "RB8")
+colour.names <- c("salmon1", "peachpuff2", "burlywood", "#F8766D","peachpuff3", "salmon2", "pink1",  "indianred2", "indianred4", "hotpink2", "steelblue3", "slategray3", "paleturquoise3","#00BFC4","turquoise", "turquoise4", "lightblue1", "lightskyblue2")
+
+#PCA + UMAP state colours
+state <- c("RB", "HM")
+state.colours <- c("#00BFC4","#F8766D")
+
+#UMAP cluster colours
+cluster.set <- ClustCol$Clusters
+colours <- ClustCol$Clusters.colour
+
+#UMAP classes colours
+classes <- ClustCol$Identity
+colours.classes <- ClustCol$Identity.colours
+
+#UMAP colour by gene
+colour <- colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)
+```
+*UMAP coloured by old and new clusters*
+```{r}
+set.seed(100)
+
+colData(sce)$is.spike <- colData(sce)$OldClust=="B3-C8"
+
+#set spike in colors
+spike <- c("TRUE","FALSE")
+colour <- c("red","black")
+
+UMAP <- ggcells(sce, mapping=aes(x=UMAP1, y=UMAP2, color=is.spike)) + 
+    geom_point() + scale_color_manual(values=setNames(colour, spike)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+
+pdf("../../data/Downstream_graphs/UMAP_SpikeOrNot.pdf", width=12, height=8)
+UMAP
+dev.off()
+
+UMAP <- ggcells(sce, mapping=aes(x=UMAP1, y=UMAP2, color=Clusters)) + 
+    geom_point()
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+
+pdf("../../data/Downstream_graphs/UMAP_AllClust.pdf", width=12, height=8)
+UMAP
+dev.off()
+```
+***Remove Spike Ins- Cluster C4***
+```{r}
+sce <- sce[,(colData(sce)$is.spike=="FALSE")]
+```
+*Generating a new UMAP without Spike ins*
+```{r}
+set.seed(100)
+sce <- runUMAP(sce, dimred="PCA", min_dist=0.5, n_neighbors=20)
+plotReducedDim(sce, dimred="UMAP", colour_by="Sample") + scale_color_manual(values=setNames(colour.names, sample.set))
+ggsave(filename="../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Sample.pdf", width=12, height=8)
+plotReducedDim(sce, dimred="UMAP", colour_by="Batches")
+
+UMAP <- as.data.frame(reducedDim(sce, "UMAP"))
+colData(sce)$UMAP1 <- UMAP$V1
+colData(sce)$UMAP2 <- UMAP$V2
+
+UMAP <- ggcells(sce, mapping=aes(x=UMAP1, y=UMAP2, color=Clusters)) + 
+    geom_point() + scale_color_manual(values=setNames(colours, cluster.set)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+```
+*Saving session info*
+```{r}
+sessionInfo()
+saveRDS(sce,file="../../data/sce_all_nospike_2.rds")
+```

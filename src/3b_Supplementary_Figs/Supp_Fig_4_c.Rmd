@@ -1,0 +1,76 @@
+---
+title: "Supp_Fig_4c"
+author: "Alecia-Jane Twigger"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(plyr)
+library(dplyr)
+library(scater)
+library(ggplot2)
+library(knitr)
+library("scatterplot3d")
+
+#specific for dendogram+heatmap
+library(cowplot)
+library(viridis)
+library(RColorBrewer)
+library(pheatmap)
+library(gridExtra)
+library(gridGraphics)
+library(dendextend)
+
+#load data
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+```
+**Supplementary Figure 4c**
+Number of cells from each sample per cluster
+```{r}
+sumry <- group_by(pD, Clusters) %>%
+    summarize("Number of cells"=n(),
+              "UMI"=mean(sum),
+              "Genes"=mean(detected),
+              "%Mito"=mean(subsets_Mito_percent),
+          "HMC1"=count(Sample=="HMC1"),
+          "HMC2"=count(Sample=="HMC2"),
+          "HMC3"=count(Sample=="HMC3"),
+          "HMC4"=count(Sample=="HMC4"),
+          "HMC2B"=count(Sample=="HMC2B"),
+          "HMC5"=count(Sample=="HMC5"),
+          "HMC6"=count(Sample=="HMC6"),
+          "HMC7"=count(Sample=="HMC7"),
+          "HMC8"=count(Sample=="HMC8"),
+          "HMC9"=count(Sample=="HMC9"),
+          "RB1"=count(Sample=="RB1"),
+          "RB2"=count(Sample=="RB2"),
+          "RB3"=count(Sample=="RB3"),
+          "RB4"=count(Sample=="RB4"),
+          "RB5"=count(Sample=="RB5"),
+          "RB6"=count(Sample=="RB6"),
+          "RB7"=count(Sample=="RB7"),
+          "RB8"=count(Sample=="RB8"))
+kable(sumry,caption="Summary of cluster content")
+
+write.csv(sumry,file="../../data/Downstream_graphs/SummaryStatistics.csv",row.names=FALSE)
+```
+Number of cells from each sample
+```{r}
+sumry <- group_by(pD, Sample) %>%
+    summarize("Number of cells"=n(),
+              "UMI"=mean(sum),
+              "Genes"=mean(detected),
+              "%Mito"=mean(subsets_Mito_percent))
+kable(sumry,caption="Summary of cluster content")
+
+write.csv(sumry,file="../../data/Downstream_graphs/SummaryStatistics_bySample.csv",row.names=FALSE)
+```

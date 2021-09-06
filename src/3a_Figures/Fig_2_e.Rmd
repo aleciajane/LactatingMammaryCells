@@ -1,0 +1,128 @@
+---
+title: "Fig_2e"
+author: "Alecia-Jane Twigger"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(igraph)
+library(dplyr)
+library(ggraph)
+library(ggplot2)
+
+#load cells with SCENIC data and adding it together with all other cells that were not included in the analysis
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+SCENIC <- read.csv("../../data/SCENIC/AUC_Matrix.csv",stringsAsFactors = FALSE, row.names = 1)
+colnames(SCENIC) <- factor(paste0(colnames(SCENIC),"Reg"))
+sce.mini <- sce[,rownames(SCENIC)]
+colData(sce.mini) <- cbind(colData(sce.mini), SCENIC, by=rownames(SCENIC))
+notSCENIC <- colData(sce)$Barcode %in% rownames(SCENIC)
+notSCENIC.sce <- sce[,notSCENIC=="FALSE"]
+SCENIC.not <- matrix(-0.1, nrow=90744, ncol=ncol(SCENIC))
+rownames(SCENIC.not) <- colnames(notSCENIC.sce)
+colnames(SCENIC.not) <- colnames(SCENIC)
+colData(notSCENIC.sce) <- cbind(colData(notSCENIC.sce), SCENIC.not, by=rownames(SCENIC.not))
+sce.anno <- cbind(notSCENIC.sce,sce.mini)
+
+#Load ouput from the SCENIC analysis to generate regulon gene graphs
+adj <- read.csv("SCENIC_adj_subset1k.csv")
+trgts <- read.csv(paste0(gene,"(+)_regulon.txt"),header=FALSE)
+# Number of top downstream targets
+topN <- 30
+# Nmber of top downstreams of target that is a TF itself
+topN_secondary <- 5
+```
+*Check that the data is loaded correctly*
+```{r}
+sce
+```
+**Figure 2ei**
+*UMAP coloured by STAT5A regulon expression*
+```{r}
+UMAP <- ggcells(sce.anno, mapping=aes(x=UMAP1, y=UMAP2, color=STAT5A...Reg)) + 
+    geom_point() +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_color_gradientn(colors=c("lightgrey", "lightgrey", "#FCF89B", "#FCF89B","#69CCB2", "#76D1D2", "#434CA7", "#494E76"), breaks=c(-0.1,-0.000000000000000000000000000000011,-0.00000000000000000000000000000001,0,0.25,0.5,0.75,1))
+UMAP
+
+pdf("../../data/Fig_2/Fig_2eii.pdf", width=12, height=8)
+UMAP
+dev.off()
+```
+**Figure 2eii**
+*Graph of STAT5A regulon genes*
+```{r}
+gene <- "STAT5A"
+adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
+adj <- group_by(adj,TF) %>%
+    mutate(rnk=rank(-importance))
+adj <- adj[adj$rnk <= topN_secondary | adj$TF ==gene,]
+adj <- adj[adj$rnk <= topN,]
+istrgt <- adj$target[adj$TF==gene]
+adj <- adj[adj$TF %in% c(gene,istrgt),]
+
+colnames(adj) <- c("from","to","importance","rnk")
+g <- graph_from_data_frame(adj,directed=TRUE)
+
+ggraph(g, circular=TRUE) + 
+    geom_edge_link0(arrow = arrow(angle = 30, length = unit(0.09, "inches"),
+                              ends = "last", type = "closed"),
+		    color="grey50") +
+    geom_node_point(pch=21,fill="white",color="black") +
+    geom_node_text(aes(label = name), 
+		       size = 3, 
+		       vjust = 2) +
+    theme_void()
+```
+**Figure 2eiii**
+*UMAP coloured by SOX10 regulon expression*
+```{r}
+UMAP <- ggcells(sce.anno, mapping=aes(x=UMAP1, y=UMAP2, color=SOX10...Reg)) + 
+    geom_point() +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_color_gradientn(colors=c("lightgrey", "lightgrey", "#FCF89B", "#FCF89B","#69CCB2", "#76D1D2", "#434CA7", "#494E76"), breaks=c(-0.1,-0.000000000000000000000000000000011,-0.00000000000000000000000000000001,0,0.25,0.5,0.75,1))
+UMAP
+
+pdf("../../data/Fig_2/Fig_2eii.pdf", width=12, height=8)
+UMAP
+dev.off()
+```
+**Figure 2eiv**
+*Graph of SOX10 regulon genes*
+```{r}
+gene <- "SOX10"
+adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
+adj <- group_by(adj,TF) %>%
+    mutate(rnk=rank(-importance))
+adj <- adj[adj$rnk <= topN_secondary | adj$TF ==gene,]
+adj <- adj[adj$rnk <= topN,]
+istrgt <- adj$target[adj$TF==gene]
+adj <- adj[adj$TF %in% c(gene,istrgt),]
+
+colnames(adj) <- c("from","to","importance","rnk")
+g <- graph_from_data_frame(adj,directed=TRUE)
+
+ggraph(g, circular=TRUE) + 
+    geom_edge_link0(arrow = arrow(angle = 30, length = unit(0.09, "inches"),
+                              ends = "last", type = "closed"),
+		    color="grey50") +
+    geom_node_point(pch=21,fill="white",color="black") +
+    geom_node_text(aes(label = name), 
+		       size = 3, 
+		       vjust = 2) +
+    theme_void()
+```
+*Saving session info*
+```{r}
+sessionInfo()
+```

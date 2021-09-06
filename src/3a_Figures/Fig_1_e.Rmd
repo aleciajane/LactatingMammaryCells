@@ -1,0 +1,36 @@
+---
+title: "Fig_1_e"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+**Setting up**
+
+*Load data and packages*
+```{r, message=FALSE}
+#load libraries
+library(ggplot2)
+library(scater)
+library(scuttle)
+#load data
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+```
+***Figure 1e***
+*Uniform manifold approximation and projection (UMAP) dimensional reduction of the mammary cells reveals distinct clusters arising from NMCs and LMCs.*
+```{r}
+state <- c("RB","HM")
+state.colours <- c("#00BFC4","#F8766D")
+
+UMAP <- ggcells(sce, mapping=aes(x=UMAP1, y=UMAP2, color=State)) + 
+    geom_point() + scale_color_manual(values=setNames(state.colours, state)) +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+UMAP
+pdf("../../data/Fig_1/UMAP_State.pdf", width=12, height=8)
+UMAP
+dev.off()
+```

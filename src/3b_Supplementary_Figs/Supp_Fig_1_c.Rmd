@@ -1,0 +1,45 @@
+---
+title: "Supp_Fig_1c"
+author: "Alecia-Jane Twigger"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+  df_print: paged
+---
+*Set up*
+```{r, message=FALSE}
+library(ggplot2)
+library(dplyr)
+
+#load data
+Percent_sub <- read.csv("../../data/FACS_data.csv",stringsAsFactors = FALSE)
+```
+*Checking data is read in correctly*
+```{r}
+head(Percent_sub)
+```
+***Supplementary Fig 1c***
+*Summary of NMC (n=4) and LMC (n=4) that fall into the gates for single gated Draq5+ nucleated cells CD45+ immune cells, CD45-/EpCAM-/CD49f+ myoepithelial cells or CD45-/EpCAM+ luminal cells.*
+```{r}
+stained <- c("Lineage_pos_RB","Lineage_pos_HMC","Basal_RB","Basal_HMC","Luminal_RB","Luminal_HMC")
+color.name <- c("gray", "gray", "dimgrey", "dimgrey", "bisque", "bisque")
+
+Percent_ord_sub <- group_by(Percent_sub, Event) %>%
+  ungroup(Event) %>%
+  mutate(Event=forcats::fct_relevel(Event,c("Lineage_pos_RB","Basal_RB","Luminal_RB","Lineage_pos_HMC","Basal_HMC","Luminal_HMC"))) %>%
+ arrange(Event)
+
+Counts_sub <- ggplot(Percent_ord_sub, aes(x=Event, y=Percent))+
+    geom_boxplot(aes(fill=Event)) + 
+    geom_point(color="black") +
+    xlab("Stain") +
+    ylab("% Stained structures") +
+    ggtitle("Stained Structures per mL of milk") +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),axis.text.x = element_text(angle = 90))
+Counts_sub + scale_fill_manual(values=setNames(color.name, stained))
+
+pdf("../../data/Supp_Fig_1/Supp_Fig_1_c.pdf", width=6, height=4)
+Counts_sub + scale_fill_manual(values=setNames(color.name, stained))
+dev.off()
+```

@@ -1,0 +1,84 @@
+---
+title: "B1_prepareExpressionList.Rmd"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+**This script extracts a cleaned count matrix from the 10X output**
+*Here we compile the data for 4 x LMCs (LMC1-4 or HMC1-4) and 4 x NMCs (NMC1-4 or RB1-4)*
+The script is largely based on: https://github.com/MarioniLab/DropletUtils and https://bioconductor.org/packages/3.11/bioc/vignettes/DropletUtils/inst/doc/DropletUtils.html
+
+*Load libraries*
+```{r, message=FALSE}
+library(DropletUtils)
+library(org.Hs.eg.db)
+```
+*Load samples*
+```{r}
+#make a list of path directories
+samples <- c("../../data/Batch1/HMC1_17051",
+             "../../data/Batch1/HMC2_17053",
+             "../../data/Batch1/HMC3_17041",
+             "../../data/Batch1/HMC4_17056",
+             "../../data/Batch1/RB1_M41",
+             "../../data/Batch1/RB2_M42",
+             "../../data/Batch1/RB3_M44",
+             "../../data/Batch1/RB4_M38")
+sample.names <- c("HMC1","HMC2","HMC3","HMC4","RB1","RB2","RB3","RB4")
+#make single cell object
+sce <- read10xCounts(samples, sample.names=sample.names, col.names = TRUE)
+colData(sce)$Barcode <- colnames(sce) <- paste(colData(sce)$Sample,colData(sce)$Barcode, sep="_")
+
+#run empty drops
+set.seed(100)
+out <- emptyDrops(counts(sce))
+is.cell <- out$FDR <= 0.01
+sum(is.cell, na.rm=TRUE)
+#241110
+table(Limited=out$Limited, Significant=is.cell)
+#     Significant
+#Limited  FALSE   TRUE
+#  FALSE 356094  53231
+#  TRUE       0 187879
+sce
+
+#formatting is.cell vector to be either FALSE or TRUE
+is.cell[is.na(is.cell)] <- FALSE
+
+#keeping the non-empty droplets
+sce <- sce[,is.cell]
+
+#keeping only the genes that show some expression
+keep <- rowSums(counts(sce)) > 1
+sce <- sce[keep,]
+
+#Find annotations for Ensembl gene ID's using the package "org.Hs.eg.db"
+my.ids <- rownames(rowData(sce))
+anno <- select(org.Hs.eg.db, keys=my.ids, keytype="ENSEMBL", column="SYMBOL")
+anno <- anno[match(my.ids, anno$ENSEMBL),]
+rowData(sce)$Symbol <- anno$SYMBOL
+
+#add Mitochondial gene annotations
+mitoGenes <- read.table("../../data/miscData/MitoGenes.txt")
+rowData(sce)$Mito <- rowData(sce)$ID %in% mitoGenes$V1
+
+#add TF gene annotations
+TFGenes <- read.table("../../data/miscData/TFcheckpoint_WithENSID.txt",sep="\t")
+colnames(TFGenes) <- TFGenes[1,]
+rowData(sce)$TF <- rowData(sce)$ID %in% TFGenes$ensembl_gene_id
+
+#Save data
+cDat <- counts(sce)
+pDat <- colData(sce)
+fDat <- rowData(sce)
+
+DataList <- list("phenoData"=pDat, "featureData"=fDat, "counts"=cDat)
+saveRDS(DataList,file="../../data/Batch1/ExpressionList.rds")
+saveRDS(sce,file="../../data/Batch1/sce.rds")
+
+sessionInfo()
+```

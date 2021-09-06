@@ -1,0 +1,104 @@
+---
+title: "B3_Downstream_analysis"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+Using our cleaned data we aim to understand more about the structure of the data that we are working with so that we can try and interpret the biological meaning it might have.
+
+**Setting up**
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(dplyr)
+library(scran)
+library(scater)
+library(ggplot2)
+library(Rtsne)
+library(dynamicTreeCut)
+library(igraph)
+library(Matrix)
+library(umap)
+library(PCAtools)
+
+##load data
+sce <- readRDS("../../data/Batch3/sce_clean.rds")
+```
+**Determining highly variable genes (hvg)**
+*Mean expression and variance of each gene*
+Here we can determine the mean expression and variance for each gene and generate a trend line that fits this relationship. If a gene fits along this trend line, this suggests that the gene is stably expressed and is not really of interest for down stream clustering and cell identification.
+```{r}
+dec.sce <- modelGeneVar(sce)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+```
+*Selecting highly variable genes*
+Next we select the highly variable genes as the top 10% of genes and store them as an object "chosen".
+```{r}
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+```
+To store this object, we subset the original "sce" object by the highly variable genes and create a new object called "sce.hvg". Next we store the old "original" sce object (containing original colData and counts matrix) is now stored in the new "sce.hvg" object.
+```{r}
+sce.hvg <- sce[chosen,]
+dim(sce.hvg)
+
+altExp(sce.hvg, "original") <-sce
+altExpNames(sce.hvg)
+sce.hvg
+```
+**Principle component analysis**
+```{r}
+set.seed(100)
+sce.hvg <- runPCA(sce.hvg)
+reducedDimNames(sce.hvg)
+
+plotReducedDim(sce.hvg, dimred="PCA", colour_by="Sample")
+```
+*Uniform manifold approximation and projection*
+```{r}
+set.seed(60)
+sce.hvg <- runUMAP(sce.hvg, dimred="PCA", min_dist=0.7, n_neighbors=18)
+plotReducedDim(sce.hvg, dimred="UMAP", colour_by="Sample")
+```
+**Clustering the cells**
+```{r}
+g <- buildSNNGraph(sce.hvg, k=30, use.dimred = "PCA")
+clust <- igraph::cluster_louvain(g)$membership
+table(clust)
+colData(sce.hvg)$GraphClusters <- factor(paste0("C",clust))
+```
+Plotting the UMAP colored by Clusters
+```{r}
+plotReducedDim(sce.hvg, dimred="UMAP", colour_by="GraphClusters")
+```
+**Ensuring that both the sce.hvg subset and full sce plot are stored**
+```{r}
+sce.original <- altExp(sce.hvg, "original", withColData=TRUE)
+reducedDim(sce.original, "PCA") <- reducedDim(sce.hvg, "PCA")
+reducedDim(sce.original, "UMAP") <- reducedDim(sce.hvg, "UMAP")
+altExp(sce.original, "hvg") <- sce.hvg
+
+#Adding PCA and UMAP data to colData
+PCA <- as.data.frame(reducedDim(sce.original, "PCA"))
+UMAP <- as.data.frame(reducedDim(sce.original, "UMAP"))
+colData(sce.original)$PCA1 <- PCA$PC1
+colData(sce.original)$PCA2 <- PCA$PC2
+colData(sce.original)$PCA3 <- PCA$PC3
+colData(sce.original)$PCA4 <- PCA$PC4
+colData(sce.original)$UMAP1 <- UMAP$V1
+colData(sce.original)$UMAP2 <- UMAP$V2
+
+sce.original
+```
+*Saving the data*
+```{r}
+saveRDS(sce.original,file="../../data/Batch3/sce_final.rds")
+sessionInfo()
+```
