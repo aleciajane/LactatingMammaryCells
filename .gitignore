@@ -1,0 +1,6 @@
+/data
+.Rhistory
+/notebooks
+.DS_Store
+*.nb.html
+*.html
