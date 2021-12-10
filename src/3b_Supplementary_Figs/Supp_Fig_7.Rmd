@@ -1,0 +1,423 @@
+---
+title: "Supp_Fig_7"
+author: "Alecia"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+**Setting up**
+
+*Load data and packages*
+Firstly we must load the important libraries and then the data.
+```{r, message=FALSE}
+#load libraries
+library(plyr)
+library(dplyr)
+library(scran)
+library(scater)
+library(ggplot2)
+library(knitr)
+
+#libraries for reformatting data for bulk DEG analysis
+library(SingleCellExperiment)
+library(edgeR)
+library(EnhancedVolcano)
+library(Seurat)
+
+#specific for GO term analysis
+library(topGO)
+library(org.Hs.eg.db)
+
+#specific for dendogram+heatmap
+library(cowplot)
+library(viridis)
+library(RColorBrewer)
+library(pheatmap)
+library(gridExtra)
+library(gridGraphics)
+
+##load data
+sce <- readRDS("../../data/sce_all_nospike_2.rds")
+ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
+```
+*Check that the data is loaded correctly*
+```{r}
+sce
+```
+**Running Differential Gene Expression (DEG) analysis**
+Generating psuedo-bulk samples from luminal HMCs which have equal numbers of cells per sample
+```{r}
+sce.sub <- sce[,((colData(sce)$Identity=="LC1" & colData(sce)$State=="HM")|(colData(sce)$Identity=="LC2" & colData(sce)$State=="HM")|(colData(sce)$Identity=="LP"& colData(sce)$State=="RB"))]
+
+#mapping cell types onto sce
+Type <- c("LC","LC","LP")
+Identity <- c("LC1","LC2","LP")
+colData(sce.sub)$Type <- mapvalues(colData(sce.sub)$Identity, Identity, Type)
+
+#mapping parity U=uniparous, M=multiparous, N=nulliparous, P=parous
+Individuals <- c("HMC1", "HMC2", "HMC3","HMC4","HMC5","HMC6","HMC7","HMC8", "HMC9","RB1", "RB2","RB3","RB4","RB5","RB6","RB7")
+Progeny <- c("1","1","1","3","2","1","2","2","1","0","0","0","2","1","2","1")
+Parity <- c("Parous","Parous","Parous","Parous","Parous","Parous","Parous","Parous","Parous", "Null", "Null", "Null","Parous","Parous","Parous","Parous")
+colData(sce.sub)$Progeny <- mapvalues(colData(sce.sub)$Individuals, Individuals, Progeny)
+colData(sce.sub)$Parity <- mapvalues(colData(sce.sub)$Individuals, Individuals, Parity)
+
+#Create pseudo-bulk samples from the Samples subsetted according to type
+summed <- aggregateAcrossCells(sce.sub,
+                               ids=DataFrame(label=sce.sub$Type,
+                                             sample=sce.sub$Individuals))
+summed
+table(summed$sample,summed$label)
+```
+**Supplementary Fig 7a**
+*Performing DEG analysis and generating volcano plots of the genes differentially expressed between nulliparous and parous NMC luminal progenitors (LPs).*
+```{r}
+#Run DEG analysis
+RBparous <- summed[,summed$State=="RB"]
+
+y<- DGEList(counts(RBparous), samples = colData(RBparous))
+y
+
+#pre-processing
+discarded <- isOutlier(y$samples$lib.size, log=TRUE, type="lower")
+y <- y[,!discarded]
+summary(discarded)
+
+#remove lowly expressed genes
+keep <- filterByExpr(y, group=summed$Parity)
+y <- y[keep,]
+summary(keep)
+
+#correct for compositional bias
+y <- calcNormFactors(y)
+y$samples
+
+#Stat modeling
+design <- model.matrix(~factor(Parity), y$samples)
+design
+
+#estimate binomial (NB) dispersions
+y <- estimateDisp(y,design)
+summary(y$trended.dispersion)
+
+#Plot
+plotBCV(y)
+
+#find fit
+fit <- glmQLFit(y, design, robust=TRUE)
+summary(fit$var.prior)
+summary(fit$df.prior)
+
+#plot
+plotQLDisp(fit)
+
+#run test
+res <- glmQLFTest(fit, coef=ncol(design))
+summary(decideTests(res))
+
+#factor(Parity)Parous
+#Down                      0
+#NotSig                14268
+#Up                        0
+
+#Adding false discovery rate (FDR) values to the res$table and saving this as a new object DEGs with the rows in order of the FDR
+topTags(res)
+res$table$FDR <- p.adjust(res$table$PValue, method="BH")
+DEGs <- res$table[order(res$table$FDR),]
+dim(DEGs) #10146
+write.csv(DEGs, file= "../../data/Supp_Fig_7/ParousvsNulli_LP_AllDEGs.csv")
+
+#Specifying labels for top 10 genes
+sig.genes <- subset(DEGs, DEGs$FDR < 10e-4)
+
+upgenes <- sig.genes[order(-sig.genes$logFC),]
+uplab <- rownames(upgenes)[1:15]
+
+downgenes <- sig.genes[order(sig.genes$logFC),]
+downlab <- rownames(downgenes)[1:15]
+
+labels <- c(uplab, downlab)
+
+#Volcano plot
+Volcano <- EnhancedVolcano(DEGs,
+lab = rownames(DEGs),
+x = 'logFC',
+y = 'FDR',
+title = 'DEGs Nulliparous vs Parous LP',
+subtitle = '',
+subtitleLabSize = 2,
+legendPosition = "bottom",
+pointSize = 3.0,
+labSize = 5.0,
+#FCcutoff = 0,
+#pCutoff = 10e-8,
+col = c("grey", "grey", "steelblue", "red"),
+selectLab = labels,
+#legendVisible = FALSE,
+drawConnectors = TRUE,
+typeConnectors = 'open')
+Volcano
+
+pdf("../../data/Supp_Fig_7/Supp_Fig_7a.pdf", width=12, height=8)
+Volcano
+dev.off()
+```
+**Supplementary Fig 7b**
+*Performing DEG analysis and generating volcano plots of the genes differentially expressed between uniparous and multiparous Luminal cluster (LC) cells from milk.*
+```{r}
+#Run DEG analysis
+HMparous <- summed[,summed$State=="HM"]
+
+Progeny <- c("1","3","2")
+HowParous <- c("Uni","Multi","Multi")
+colData(HMparous)$HowParous <- mapvalues(colData(HMparous)$Progeny, Progeny, HowParous)
+
+y<- DGEList(counts(HMparous), samples = colData(HMparous))
+y
+
+#pre-processing
+discarded <- isOutlier(y$samples$lib.size, log=TRUE, type="lower")
+y <- y[,!discarded]
+summary(discarded)
+
+#remove lowly expressed genes
+keep <- filterByExpr(y, group=summed$HowParous)
+y <- y[keep,]
+summary(keep)
+
+#correct for compositional bias
+y <- calcNormFactors(y)
+y$samples
+
+#Stat modeling
+design <- model.matrix(~factor(HowParous), y$samples)
+design
+
+#estimate binomial (NB) dispersions
+y <- estimateDisp(y,design)
+summary(y$trended.dispersion)
+
+#Plot
+plotBCV(y)
+
+#find fit
+fit <- glmQLFit(y, design, robust=TRUE)
+summary(fit$var.prior)
+summary(fit$df.prior)
+
+#plot
+plotQLDisp(fit)
+
+#run test
+res <- glmQLFTest(fit, coef=ncol(design))
+summary(decideTests(res))
+
+#       factor(HowParous)Uni
+#Down                      0
+#NotSig                11825
+#Up                        0
+
+#Adding false discovery rate (FDR) values to the res$table and saving this as a new object DEGs with the rows in order of the FDR
+topTags(res)
+res$table$FDR <- p.adjust(res$table$PValue, method="BH")
+DEGs <- res$table[order(res$table$FDR),]
+dim(DEGs) #10146
+write.csv(DEGs, file= "../../data/Supp_Fig_7/UnivsMulti_LC_AllDEGs.csv")
+
+##Specifying labels for top 10 genes
+sig.genes <- subset(DEGs, DEGs$FDR < 10e-4)
+
+upgenes <- sig.genes[order(-sig.genes$logFC),]
+uplab <- rownames(upgenes)[1:15]
+
+downgenes <- sig.genes[order(sig.genes$logFC),]
+downlab <- rownames(downgenes)[1:15]
+
+labels <- c(uplab, downlab)
+
+
+#Volcano plot
+Volcano <- EnhancedVolcano(DEGs,
+lab = rownames(DEGs),
+x = 'logFC',
+y = 'FDR',
+title = 'DEGs Uniparous vs Multiparous LC',
+subtitle = '',
+subtitleLabSize = 2,
+legendPosition = "bottom",
+pointSize = 3.0,
+labSize = 5.0,
+#FCcutoff = 0,
+#pCutoff = 10e-8,
+col = c("grey", "grey", "steelblue", "red"),
+selectLab = labels,
+#legendVisible = FALSE,
+drawConnectors = TRUE,
+typeConnectors = 'open')
+Volcano
+
+pdf("../../data/Supp_Fig_7/Supp_Fig_7b.pdf", width=12, height=8)
+Volcano
+dev.off()
+```
+**Supplementary Fig 7c**
+*Running DEG analysis for nulliparous LPs and LCs*
+```{r}
+#Subset cells
+Cells <- summed[,((summed$Parity=="Null" & summed$State=="RB") | (summed$Parity=="Parous" & summed$State=="HM"))]
+
+y<- DGEList(counts(Cells), samples = colData(Cells))
+y
+
+#pre-processing
+discarded <- isOutlier(y$samples$lib.size, log=TRUE, type="lower")
+y <- y[,!discarded]
+summary(discarded)
+
+#remove lowly expressed genes
+keep <- filterByExpr(y, group=summed$Parity)
+y <- y[keep,]
+summary(keep)
+
+#correct for compositional bias
+y <- calcNormFactors(y)
+y$samples
+
+#Stat modeling
+design <- model.matrix(~factor(Parity), y$samples)
+design
+
+#estimate binomial (NB) dispersions
+y <- estimateDisp(y,design)
+summary(y$trended.dispersion)
+
+#Plot
+plotBCV(y)
+
+#find fit
+fit <- glmQLFit(y, design, robust=TRUE)
+summary(fit$var.prior)
+summary(fit$df.prior)
+
+#plot
+plotQLDisp(fit)
+
+#run test
+res <- glmQLFTest(fit, coef=ncol(design))
+summary(decideTests(res))
+
+# factor(Parity)Parous
+#Down                   4760
+#NotSig                 5471
+#Up                     4528
+
+#Adding false discovery rate (FDR) values to the res$table and saving this as a new object DEGs with the rows in order of the FDR
+topTags(res)
+res$table$FDR <- p.adjust(res$table$PValue, method="BH")
+DEGs <- res$table[order(res$table$FDR),]
+dim(DEGs) #10146
+DEGS.nulli <- DEGs
+write.csv(DEGs, file= "../../data/Supp_Fig_7/NulliLPvsLC_AllDEGs.csv")
+```
+*Running DEG analysis for parous LPs and LCs*
+```{r}
+#Subset cells
+Paris <- summed[,summed$Parity=="Parous"]
+
+y<- DGEList(counts(Paris), samples = colData(Paris))
+y
+
+#pre-processing
+discarded <- isOutlier(y$samples$lib.size, log=TRUE, type="lower")
+y <- y[,!discarded]
+summary(discarded)
+
+#remove lowly expressed genes
+keep <- filterByExpr(y, group=summed$State)
+y <- y[keep,]
+summary(keep)
+
+#correct for compositional bias
+y <- calcNormFactors(y)
+y$samples
+
+#Stat modeling
+design <- model.matrix(~factor(State), y$samples)
+design
+
+#estimate binomial (NB) dispersions
+y <- estimateDisp(y,design)
+summary(y$trended.dispersion)
+
+#Plot
+plotBCV(y)
+
+#find fit
+fit <- glmQLFit(y, design, robust=TRUE)
+summary(fit$var.prior)
+summary(fit$df.prior)
+
+#plot
+plotQLDisp(fit)
+
+#run test
+res <- glmQLFTest(fit, coef=ncol(design))
+summary(decideTests(res))
+
+#  factor(State)RB
+#Down              4376
+#NotSig            4248
+#Up                4307
+
+#Adding false discovery rate (FDR) values to the res$table and saving this as a new object DEGs with the rows in order of the FDR
+topTags(res)
+res$table$FDR <- p.adjust(res$table$PValue, method="BH")
+DEGs <- res$table[order(res$table$FDR),]
+dim(DEGs) #10146
+DEGS.parous <- DEGs
+
+write.csv(DEGs, file= "../../data/Supp_Fig_7/ParousLPvsLC_AllDEGs.csv")
+```
+*Plotting Supplementary Figure 7c*
+```{r}
+DEGS.nulli$Genes <- rownames(DEGS.nulli)
+DEGS.parous$Genes <- rownames(DEGS.parous)
+
+Nulli <- data.frame(DEGS.nulli$Genes,DEGS.nulli$logFC, DEGS.nulli$FDR)
+names(Nulli) <- c("Genes", "logFC.Nulli", "FDR.Nulli")
+
+Parous <- data.frame(DEGS.parous$Genes,DEGS.parous$logFC, DEGS.parous$FDR)
+names(Parous) <- c("Genes", "logFC.Parous", "FDR.Parous")
+
+#Checking to see whether all genes in Nulli are in Parous and vice-versa
+all(Nulli$Genes %in% Parous$Genes)
+all(Parous$Genes %in% Nulli$Genes)
+
+InNulli <- setdiff(Nulli$Genes,Parous$Genes)
+length(InNulli) #1697
+InParous <- setdiff(Parous$Genes,Nulli$Genes) #None
+
+all(Nulli$Genes %in% Parous$Genes)
+all(Parous$Genes %in% Nulli$Genes)
+
+GlobalGenes <- union(Nulli$Genes, Parous$Genes)
+InNulli <- Nulli$Genes %in% GlobalGenes
+NotInNulli <- GlobalGenes[!InNulli]
+
+InParous <- Parous$Genes %in% GlobalGenes
+NotInParous <- GlobalGenes[!InParous]
+
+Merged <- left_join(Nulli, Parous, by="Genes")
+write.csv(Merged, file= "../../data/Supp_Fig_7/DEGs_of_Parous_or_Nulliparous_LPvsLC.csv")
+
+InterestingGenes <-ggplot(Merged, aes(logFC.Nulli, logFC.Parous)) + geom_point(col = ifelse(Merged$FDR.Nulli < 0.000000001,'red','black')) + geom_smooth(method = "lm") + geom_text(aes(label = Merged$Genes), size=2, position = position_nudge(y = 0.5))
+InterestingGenes
+ggsave(filename="../../data/Supp_Fig_7/Supp_Fig_7c.pdf",width=7,height=7)
+```
+*Saving session info*
+```{r}
+sessionInfo()
+```

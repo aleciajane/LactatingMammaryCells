@@ -34,8 +34,8 @@ pD <- as.data.frame(colData(sce))
 ```{r}
 sce
 ```
-**Figure 3a**
-*UMAP colored by cell type*
+***Figure 3a***
+*Stromal cells were classified into vascular accessory (VA), endothelial (EN), fibroblasts (FB) and immune (IM) cells.*
 ```{r}
 #load stromal colours
 Stromal <- c("Epithelial", "Endothelial", "Vascular_accessory","Immune", "Fibroblast")
@@ -51,8 +51,8 @@ pdf("../../data/Fig_3/UMAP_Classes.stromal.pdf", width=12, height=8)
 UMAP
 dev.off()
 ```
-**Figure 3b**
-*Heatmap of key characteristic stromal genes*
+***Figure 3b***
+*Canonical stromal markers were used to classify the different stromal subtypes where LMC only contained IM cells.*
 ```{r}
 set.seed(300)
 

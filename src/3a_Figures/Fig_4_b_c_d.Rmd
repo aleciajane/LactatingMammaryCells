@@ -62,7 +62,7 @@ summed <- aggregateAcrossCells(sce.sub,
 summed
 table(summed$sample,summed$label)
 ```
-*DEG analysis on HMC luminal cells and Luminal Progenitors*
+*DEG analysis on LMC luminal cells and Luminal Progenitors*
 ```{r}
 y<- DGEList(counts(summed), samples = colData(summed))
 y
@@ -92,7 +92,7 @@ summary(y$trended.dispersion)
 #Plot
 plotBCV(y)
 
-#something
+#find fit
 fit <- glmQLFit(y, design, robust=TRUE)
 summary(fit$var.prior)
 summary(fit$df.prior)
@@ -100,7 +100,7 @@ summary(fit$df.prior)
 #plot
 plotQLDisp(fit)
 
-#something part 2
+#run test
 res <- glmQLFTest(fit, coef=ncol(design))
 summary(decideTests(res))
 
@@ -127,8 +127,8 @@ downlab <- rownames(downgenes)[1:15]
 
 labels <- c(uplab, downlab)
 ```
-**Fig_4_b**
-*Volcano plot of DEGs*
+***Fig_4_b***
+*Differential gene expression analysis revealed 1,146 genes highly expressed in LC LMCs compared to 922 genes more highly expressed in LP NMCs as displayed by a volcano plot (for a full list see Supplementary Table 7).*
 ```{r}
 #Volcano plot
 Volcano <- EnhancedVolcano(DEGs,
@@ -317,8 +317,10 @@ allRes
 
 write.csv(allRes, file= "../../data/Supp_Tables/Supplementary_Table_8.csv")
 ```
-**Fig_4c**
-*GO term analysis of upregulated genes_higher in LP (vs HMC)*
+***Fig_4c***
+*Important biological process gene ontology pathways that were annotated to by either genes significantly differentially expressed and upregulated in either LC (left) or LP (right) for a full list see Supplementary Table 8-9.*
+
+**Fig_4ci**
 ```{r}
 #I curated the GO terms in Supplementary_Table_9 to generate a shortened list of GO terms to display. These were loaded
 UpGO <- read.csv("../../data/Supp_Tables/Supplementary_Table_9_mini.csv",stringsAsFactors = FALSE) %>% mutate(row = row_number())
@@ -335,7 +337,7 @@ q <- ggplot(UpGO,
 q
 ggsave(filename="../../data/Fig_4/Fig_4_c_i.pdf",width=7,height=4)
 ```
-*GO term analysis of downregulated genes_higher in HMC (vs LP)*
+**Fig_4cii**
 ```{r}
 #I curated the GO terms in Supplementary_Table_8 to generate a shortened list of GO terms to display. These were loaded
 DownGO <- read.csv("../../data/Supp_Tables/Supplementary_Table_8_mini.csv",stringsAsFactors = FALSE) %>% mutate(row = row_number())
@@ -352,8 +354,8 @@ q <- ggplot(DownGO,
 q
 ggsave(filename="../../data/Fig_4/Fig_4_c_ii.pdf",width=7,height=4)
 ```
-**Fig 4d**
-*Making bubble plots of selected genes*
+***Fig 4d***
+*Key LP (left) or LC (right) genes expressed in NMC-LP, LMC-LC, or all other NMC clusters, colours represent overall normalised gene expression and size equals cell proportions.*
 ```{r}
 #mapping cell types onto sce
 Classes <- c("LC1", "LC2", "LP",  "BA",  "HR",  "EN",  "VA",  "IM",  "FB" )

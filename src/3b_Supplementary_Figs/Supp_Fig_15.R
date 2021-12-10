@@ -36,9 +36,9 @@ sce.sub <- runDiffusionMap(sce.sub, dimred="corrected")
 dm <- reducedDim(sce.sub, "DiffusionMap")
 write.csv(dm, file= "../../data/Fig_4/DiffusionCoordinates_dimredCorrected.csv")
 
-#Supplementary_Fig_12
+#Supplementary_Fig_15
 plotReducedDim(sce.sub, dimred="DiffusionMap", colour_by="Identity") + scale_color_manual(values=setNames(colours.classes, classes))
-ggsave(filename="../../data/Supp_Fig_12/Supp_Fig_12_i.pdf",width=8,height=7)
+ggsave(filename="../../data/Supp_Fig_15/Supp_Fig_15_i.pdf",width=8,height=7)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 library(TSCAN)
@@ -46,7 +46,7 @@ pseudo.out <- quickPseudotime(sce.sub, sce.sub$Identity, use.dimred="corrected",
 common.pseudo <- rowMeans(pseudo.out$ordering, na.rm=TRUE)
 
 plotReducedDim(sce.sub, colour_by=I(common.pseudo), dimred="DiffusionMap")
-ggsave(filename="../../data/Supp_Fig_12/Supp_Fig_12_ii.pdf",width=8,height=7)
+ggsave(filename="../../data/Supp_Fig_15/Supp_Fig_15_ii.pdf",width=8,height=7)
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

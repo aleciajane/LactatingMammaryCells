@@ -1,5 +1,5 @@
 ---
-title: "Supp_Fig_4b"
+title: "Supp_Fig_6b"
 author: "Alecia"
 date: "`r Sys.Date()`"
 output:
@@ -33,8 +33,8 @@ library(dendextend)
 #load data
 sce <- readRDS("../../data/sce_all_nospike_2.rds")
 ```
-**Supplementary Figure 4b**
-UMAPs colored by sample
+***Supplementary Figure 6b***
+*Uniform manifold approximation and projection (UMAP) dimensional reduction of the mammary cells reveals distinct clusters arising from NMCs and LMCs, where cells are coloured by donor.*
 ```{r}
 #--------------#UMAP colored by sample#--------------#
 #All samples colored
@@ -47,7 +47,7 @@ UMAP <- ggcells(sce, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
 
-pdf("../../data/Downstream_graphs/UMAP_Sample.pdf", width=12, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6b.pdf", width=12, height=8)
 UMAP
 dev.off()
 ```

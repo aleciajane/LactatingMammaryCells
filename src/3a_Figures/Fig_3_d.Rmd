@@ -115,8 +115,8 @@ for (i in 1:length(pathways.show.all)) {
   ggsave(filename=paste0(pathways.show.all[i], "_L-R_contribution.pdf"), plot=gg, width = 3, height = 2, units = 'in', dpi = 300)
 }
 ```
-**Supp_Fig_3_d_ii**
-*This plot displays the number of signalling interactions between each cell type.*
+***Fig 3dii***
+*Observed interactions between the cell types.*
 ```{r}
 #groupSize <- as.numeric(table(cellchat@idents))
 #par(mfrow = c(1,2), xpd=TRUE)
@@ -128,8 +128,8 @@ pdf("../../data/Fig_3/Fig3dii.pdf", width=12, height=8)
 num
 dev.off()
 ```
-**Supp_Fig_3_d_iii**
-*This plot displays interesting ligand-receptor pairs for different cell types.*
+***Fig 3diii***
+*All immune cell subtypes signal to LC1 via the EGF, MK and SPP1 signalling pathway (selected receptor-ligand pairs shown). Whereas LC1 and LC2 luminal clusters from milk are signalling to milk immune cells via MHC-II, MHC-I, CSF and GRN signalling pathways.*
 ```{r}
 #EGF
 pathways.show <- "EGF"

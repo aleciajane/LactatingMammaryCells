@@ -1,5 +1,5 @@
 ---
-title: "Supp_Fig_3_c_d"
+title: "Supp_Fig_5_c_d"
 author: "Alecia-Jane Twigger"
 date: "`r Sys.Date()`"
 output:
@@ -34,8 +34,8 @@ sce
 sample.set <- c("HMC1", "RB1", "HMC3","HMC4", "RB1B","HMC5","HMC6","HMC7","HMC8", "HMC9","RB1", "RB2","RB3","RB4","RB5","RB6","RB7", "RB8")
 colour.names <- c("salmon1", "peachpuff2", "burlywood", "#F8766D","peachpuff3", "salmon2", "pink1",  "indianred2", "indianred4", "hotpink2", "steelblue3", "slategray3", "paleturquoise3","#00BFC4","turquoise", "turquoise4", "lightblue1", "lightskyblue2")
 ```
-**Figure 3c**
-*PCA of samples from LMC2 from before (LMC2/HMC2) and after freezing (LMC2B/HMC2B)*
+**Figure 5c**
+*Cells from donor LMC2 that were sequenced fresh (LMC2) or after viable freezing (LMC2B) overlap in PCA analysis.*
 ```{r}
 set.seed(60)
 
@@ -75,12 +75,12 @@ PCAs.subcluster <- ggcells(sce.HMC2, aes(x=PCA1, y=PCA2, color=Sample))+
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
     scale_color_manual(values=setNames(colour.names, sample.set))
 PCAs.subcluster 
-pdf("../../data/Supp_Fig_3/PCA_1_2_HMC2vs2B_Sample.pdf", width=6, height=4)
+pdf("../../data/Supp_Fig_5/Supp_Fig_5c_PCA_1_2_LMC2vs2B_Sample.pdf", width=6, height=4)
 PCAs.subcluster
 dev.off()
 ```
-**Figure 3d**
-*PCA of samples from NMC1 from two different batches (NMC1/RB1 and NMC1B/RB8)*
+**Figure 5d**
+*Cells from donor NMC1 processed on two different days overlap.*
 ```{r}
 set.seed(60)
 
@@ -120,7 +120,7 @@ PCAs.subcluster <- ggcells(sce.RB1, aes(x=PCA1, y=PCA2, color=Sample))+
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
     scale_color_manual(values=setNames(colour.names, sample.set))
 PCAs.subcluster 
-pdf("../../data/Supp_Fig_3/PCA_1_2_RB1vs2B_Sample.pdf", width=6, height=4)
+pdf("../../data/Supp_Fig_5/Supp_Fig_5d_PCA_1_2_RB1vs1B_Sample.pdf", width=6, height=4)
 PCAs.subcluster
 dev.off()
 ```

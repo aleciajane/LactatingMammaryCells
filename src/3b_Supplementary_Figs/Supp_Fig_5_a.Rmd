@@ -1,5 +1,5 @@
 ---
-title: "Supp_Fig_3a"
+title: "Supp_Fig_5a"
 author: "Alecia"
 date: "`r Sys.Date()`"
 output:
@@ -23,8 +23,8 @@ library(ggplot2)
 sce <- readRDS("../../data/sce_all_nospike_2.rds")
 ```
 
-**Supplementary Figure 3a**
-UMAPs coloured by Batch
+***Supplementary Figure 5a***
+*UMAP visualisation of cells coloured by batch reveal that cells from each batch contribute to all clusters.* 
 ```{r}
 #--------------#UMAP coloured by sample#--------------#
 #All samples coloured
@@ -41,7 +41,7 @@ UMAP <- ggplot(B1, mapping=aes(x=UMAP1, y=UMAP2, color=Batches)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Batch_B1.pdf", width=12, height=8)
+pdf("../../data/Supp_Fig_5/Supp_Fig_5a_Batch_B1.pdf", width=12, height=8)
 UMAP
 dev.off()
 
@@ -55,7 +55,7 @@ UMAP <- ggplot(B1b, mapping=aes(x=UMAP1, y=UMAP2, color=Batches)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Batch_B1b.pdf", width=12, height=8)
+pdf("../../data/Supp_Fig_5/Supp_Fig_5a_Batch_B1b.pdf", width=12, height=8)
 UMAP
 dev.off()
 
@@ -69,7 +69,7 @@ UMAP <- ggplot(B2, mapping=aes(x=UMAP1, y=UMAP2, color=Batches)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Batch_B2.pdf", width=12, height=8)
+pdf("../../data/Supp_Fig_5/Supp_Fig_5a_Batch_B2.pdf", width=12, height=8)
 UMAP
 dev.off()
 
@@ -83,7 +83,7 @@ UMAP <- ggplot(B3, mapping=aes(x=UMAP1, y=UMAP2, color=Batches)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/RB_HMC_merged/Downstream_graphs/NoSpike/UMAP_Batch_B3.pdf", width=12, height=8)
+pdf("../../data/Supp_Fig_5/Supp_Fig_5a_Batch_B3.pdf", width=12, height=8)
 UMAP
 dev.off()
 ```

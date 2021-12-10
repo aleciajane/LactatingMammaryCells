@@ -1,6 +1,6 @@
 ---
 title: "Supp_Fig_8"
-author: "Alecia-Jane Twigger"
+author: "Alecia"
 date: "`r Sys.Date()`"
 output:
   html_document:
@@ -22,11 +22,7 @@ library(scater)
 library(ggplot2)
 library(knitr)
 
-#libraries for reformatting data for bulk DEG analysis
-library(SingleCellExperiment)
-library(edgeR)
-
-##load data
+#load data
 sce <- readRDS("../../data/sce_all_nospike_2.rds")
 ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
 ```
@@ -34,451 +30,417 @@ ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAs
 ```{r}
 sce
 ```
-
+*Setting colourS*
+```{r}
+#UMAP cluster colours
+cluster.set <- ClustCol$Clusters
+colours <- ClustCol$Clusters.colour
+```
 **Supp_Fig_8**
-*Plotting individual MA plots showing DEGS for LC1 vs LC2 for each sample*
-First we must generate a psuedobulk score for each sample by each cluster, then, after normalising compare the expression for each gene between the two groups and display on an MA plot.
+*Principal component analysis of individual milk donor samples reveals cells separate into luminal clusters LC1 and LC2.*
 
-*Running DEG analysis*
-Generating psuedo-bulk samples from luminal HMCs
-```{r}
-#Create pseudo-bulk samples from the Samples subsetted according to GraphClusters
-summed <- aggregateAcrossCells(sce,
-                               ids=DataFrame(label=sce$Identity,
-                                             sample=sce$Sample))
-summed
-table(summed$sample,summed$label)
-```
-*DEG analysis on subsetted HMC luminal cells from LC1 and LC2 *
-```{r}
-y<- DGEList(counts(summed), samples = colData(summed))
-y
 
-#pre-processing
-discarded <- isOutlier(y$samples$lib.size, log=TRUE, type="lower")
-y <- y[,!discarded]
-summary(discarded)
-
-#remove lowly expressed genes
-keep <- filterByExpr(y, group=summed$Identity)
-y <- y[keep,]
-summary(keep)
-
-#correct for compositional bias
-y <- calcNormFactors(y)
-y$samples
-```
-*Subset and generate MA plot per sample*
+*Subsetting by Sample first then running PCA*
 *LMC1*
 ```{r}
-#HMC1
-y.HMC1 <- y[,y$samples$sample=="HMC1"]
-is.LC1 <- y.HMC1$samples$label=="LC1"
+#LMC1/HMC1
+set.seed(60)
+#subsetting on just HMC1
+sce.HMC1 <- sce[,colData(sce)$Sample=="HMC1"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC1)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC1[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC1
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC1[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC1[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC1_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../data/Supp_Fig_8/PCA_1_2_HMC1_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC1_LC1vsLC2_logFConly.csv")
-
-HM <- data.frame(Genes = names(logFC), logFC.HMC1 = logFC)
 ```
 *LMC2*
 ```{r}
 #HMC2
-y.HMC2 <- y[,y$samples$sample=="HMC2"]
-is.LC1 <- y.HMC2$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC2
+sce.HMC2 <- sce[,colData(sce)$Sample=="HMC2"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC2)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC2[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC2
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC2[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC2[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC2_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../data/Supp_Fig_8/PCA_1_2_HMC2_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC2 = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC2_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
 ```
 *LMC2B*
 ```{r}
 #HMC2B
-y.HMC2B <- y[,y$samples$sample=="HMC2B"]
-is.LC1 <- y.HMC2B$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC2B
+sce.HMC2B <- sce[,colData(sce)$Sample=="HMC2B"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC2B)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC2B[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC2B
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC2B[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC2B[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA and colour
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC2B_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../data/Supp_Fig_8/PCA_1_2_HMC2B_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC2B = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC2B_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
 ```
 *LMC3*
 ```{r}
 #HMC3
-y.HMC3 <- y[,y$samples$sample=="HMC3"]
-is.LC1 <- y.HMC3$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC3
+sce.HMC3 <- sce[,colData(sce)$Sample=="HMC3"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC3)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC3[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC3
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC3[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC3[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC3_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../data/Supp_Fig_8/PCA_1_2_HMC3_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC3 = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC3_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
 ```
 *LMC4*
 ```{r}
 #HMC4
-y.HMC4 <- y[,y$samples$sample=="HMC4"]
-is.LC1 <- y.HMC4$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC4
+sce.HMC4 <- sce[,colData(sce)$Sample=="HMC4"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC4)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC4[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC4
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC4[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC4[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+reducedDimNames(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC4_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../Supp_Fig_8/PCA_1_2_HMC4_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC4 = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC4_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
 ```
 *LMC5*
 ```{r}
 #HMC5
-y.HMC5 <- y[,y$samples$sample=="HMC5"]
-is.LC1 <- y.HMC5$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC5
+sce.HMC5 <- sce[,colData(sce)$Sample=="HMC5"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC5)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC5[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC5
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC5[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC5[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA and colour
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC5_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../Supp_Fig_8/PCA_1_2_HMC5_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC5 = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC5_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
 ```
-*HMC6*
+*LMC6*
 ```{r}
 #HMC6
-y.HMC6 <- y[,y$samples$sample=="HMC6"]
-is.LC1 <- y.HMC6$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC6
+sce.HMC6 <- sce[,colData(sce)$Sample=="HMC6"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC6)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC6[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC6
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC6[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC6[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC6_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../Supp_Fig_8/PCA_1_2_HMC6_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC6 = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC6_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
 ```
 *LMC7*
 ```{r}
 #HMC7
-y.HMC7 <- y[,y$samples$sample=="HMC7"]
-is.LC1 <- y.HMC7$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC7
+sce.HMC7 <- sce[,colData(sce)$Sample=="HMC7"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC7)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC7[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC7
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC7[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC7[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA and colour
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC7_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../Supp_Fig_8/PCA_1_2_HMC7_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC7 = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC7_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
 ```
 *LMC8*
 ```{r}
 #HMC8
-y.HMC8 <- y[,y$samples$sample=="HMC8"]
-is.LC1 <- y.HMC8$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC8
+sce.HMC8 <- sce[,colData(sce)$Sample=="HMC8"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC8)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC8[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC8
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC8[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC8[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA and colour
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC8_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../data/Supp_Fig_8/PCA_1_2_HMC8_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC8 = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC8_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
 ```
-*LMC9*
+*HMC9*
 ```{r}
 #HMC9
-y.HMC9 <- y[,y$samples$sample=="HMC9"]
-is.LC1 <- y.HMC9$samples$label=="LC1"
+set.seed(60)
+#subsetting on just HMC9
+sce.HMC9 <- sce[,colData(sce)$Sample=="HMC9"]
+#Finding hvgs
+dec.sce <- modelGeneVar(sce.HMC9)
+fit.sce <- metadata(dec.sce)
+plot(fit.sce$mean, fit.sce$var, xlab="Mean of log-expression", ylab="Variance of log-expression")
+curve(fit.sce$trend(x), col="dodgerblue", add=TRUE, lwd=2)
+chosen <- getTopHVGs(dec.sce, prop=0.1)
+str(chosen)
+sce.hvg.sub <- sce.HMC9[chosen,]
+dim(sce.hvg.sub)
+altExp(sce.hvg.sub, "original") <-sce.HMC9
+altExpNames(sce.hvg.sub)
+sce.hvg.sub
 
-LC1<- calculateAverage((y.HMC9[,is.LC1])$counts)
-LC2 <- calculateAverage((y.HMC9[,!is.LC1])$counts)
-library(scattermore)
-logged <- cpm(cbind(LC1, LC2), log=TRUE, prior.count=2)
-logFC <- logged[,1] - logged[,2]
-abundance <- rowMeans(logged)
-fplot <- data.frame("abundance"=abundance,
-            "logFC"=logFC,
-            "Name"=names(logFC))
-fplot <- dplyr::arrange(fplot,desc(abs(logFC)))
-top <- fplot[fplot$logFC > 0,][1:15,]
-btm <- fplot[fplot$logFC < 0,][1:15,]
-ma.plt <- ggplot(fplot, aes(x=abundance, y=logFC, colour = (logFC > 2 | logFC < -2))) +
+#Run PCA
+set.seed(100)
+sce.hvg.sub <- runPCA(sce.hvg.sub)
+
+#Plot PCA
+PCA <- as.data.frame(reducedDim(sce.hvg.sub, "PCA"))
+colData(sce.hvg.sub)$PCA1 <- PCA$PC1
+colData(sce.hvg.sub)$PCA2 <- PCA$PC2
+PCAs.ident <- ggcells(sce.hvg.sub, aes(x=PCA1, y=PCA2, color=Identity))+
     geom_point() +
-  scale_colour_manual(name = 'logFC', values = setNames(c('red','black'),c(T, F))) +
-    geom_text_repel(data=top, size=5, aes(label=Name), colour="black") +
-    geom_text_repel(data=btm, size=5, aes(label=Name), colour="black") +
-    ggtitle("LC1 vs. LC2") +
-    ylab("logFC") +
+    xlab("PC1") +
+    ylab("PC2") +
+    ggtitle("PCAs") +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    geom_hline(yintercept=0, color="black") +
-    geom_hline(yintercept=c(-1.5,1.5), linetype = "dashed", color="black") +
-    xlab("Average logExpr")
-ma.plt
-pdf("../../data/Supp_Fig_3/HMC9_LC1vsLC2_MAplot.pdf", width=10, height=6)
-ma.plt
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + 
+    scale_color_manual(values=setNames(colours.classes, classes))
+PCAs.ident 
+pdf("../../data/Supp_Fig_8/PCA_1_2_HMC9_Identity.pdf", width=6, height=4)
+PCAs.ident
 dev.off()
-
-logFC.df <- data.frame(Genes = names(logFC), logFC.HMC9 = logFC)
-logFC.df <- logFC.df[order(-logFC.df$logFC),]
-write.csv(logFC.df, file= "../../data/Supp_Fig_3/HMC9_LC1vsLC2_logFConly.csv")
-
-HM <- merge(HM,logFC.df, by="Genes")
-write.csv(HM, file= "../../data/Supp_Fig_3/AllHMC_LC1vsLC2_logFConly.csv")
 ```
 *Saving session info*
 ```{r}

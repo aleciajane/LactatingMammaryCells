@@ -46,8 +46,8 @@ topN_secondary <- 5
 ```{r}
 sce
 ```
-**Figure 2ei**
-*UMAP coloured by STAT5A regulon expression*
+***Figure 2ei***
+*Significant regulons found in LCs,UMAP of STAT5A regulon activation in luminal cells*
 ```{r}
 UMAP <- ggcells(sce.anno, mapping=aes(x=UMAP1, y=UMAP2, color=STAT5A...Reg)) + 
     geom_point() +
@@ -59,8 +59,8 @@ pdf("../../data/Fig_2/Fig_2eii.pdf", width=12, height=8)
 UMAP
 dev.off()
 ```
-**Figure 2eii**
-*Graph of STAT5A regulon genes*
+***Figure 2eii***
+*Genes associated with STAT5A regulon.*
 ```{r}
 gene <- "STAT5A"
 adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
@@ -84,8 +84,8 @@ ggraph(g, circular=TRUE) +
 		       vjust = 2) +
     theme_void()
 ```
-**Figure 2eiii**
-*UMAP coloured by SOX10 regulon expression*
+***Figure 2eiii***
+*UMAP of SOX10 regulon activation in luminal cells*
 ```{r}
 UMAP <- ggcells(sce.anno, mapping=aes(x=UMAP1, y=UMAP2, color=SOX10...Reg)) + 
     geom_point() +
@@ -97,8 +97,8 @@ pdf("../../data/Fig_2/Fig_2eii.pdf", width=12, height=8)
 UMAP
 dev.off()
 ```
-**Figure 2eiv**
-*Graph of SOX10 regulon genes*
+***Figure 2eiv***
+*Genes associated with SOX10 regulon.*
 ```{r}
 gene <- "SOX10"
 adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]

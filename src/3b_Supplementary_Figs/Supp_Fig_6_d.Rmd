@@ -1,5 +1,5 @@
 ---
-title: "Supp_Fig_6"
+title: "Supp_Fig_6d"
 author: "Alecia-Jane Twigger"
 date: "`r Sys.Date()`"
 output:
@@ -8,20 +8,25 @@ output:
   html_notebook: default
   pdf_document: default
 ---
-
 **Setting up**
-
 *Load data and packages*
 Firstly we must load the important libraries and then the data.
 ```{r, message=FALSE}
 #load libraries
+library(dplyr)
 library(scater)
-library(RColorBrewer)
+library(ggplot2)
+library(knitr)
 library(pheatmap)
 
-##load data
+#load data
 sce <- readRDS("../../data/sce_all_nospike_2.rds")
 ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
+
+#mapping epithelial cell types onto sce
+Classes <- c("LC1", "LC2", "LP","BA", "HR", "EN",  "VA","IM", "FB")
+Epithelial <- c("Luminal_HMC1", "Luminal_HMC2", "Luminal_LP","Basal", "Luminal_HR", "Stroma",  "Stroma","Stroma", "Stroma")
+colData(sce)$Epithelial.clusters <- mapvalues(colData(sce)$Identity, Classes, Epithelial)
 
 pD <- as.data.frame(colData(sce))
 ```
@@ -29,30 +34,28 @@ pD <- as.data.frame(colData(sce))
 ```{r}
 sce
 ```
-**Supp_Fig_6**
-*Heatmap of key characteristic genes from the milk cell literature*
+***Supplementary Fig 6d***
+*Heatmap of key genes associated with each mammary cell subtype and identified in our clusters.*
 ```{r}
 set.seed(300)
 
-#Select colours
+genes <- c("TAGLN","MYLK","OXTR","PROCR","KRT5","KRT14","KRT17","EPCAM","KRT18","KRT19","ELF3","CLDN3","CLDN4","GATA3","AREG","AGR2","ANKRD30A","ESR1","FOXA1","TFF1","TFF3","KRT23","KIT","MMP7","PROM1","KRT15","BCL11A","ALDH1A3","ELF5","LTF","S100A9","CD36","XDH","MUC1","SPP1","MT1F","MT1G","MT1M","VEGFA","IL6R","H2BC8","NEAT1","SLC27A5","CRABP1","GLOD5","CFI","HLA-DRA","RPL17","TIMP4")
+
+#Set heatmap cluster colours
 my_colour = list(
     Sample=c(HMC1 = "salmon1", HMC2 = "peachpuff2", HMC3 = "burlywood", HMC4 = "#F8766D", HMC2B="peachpuff3", HMC5="salmon2", HMC6="pink1", HMC7="indianred2", HMC8="indianred4", HMC9="hotpink2", RB1 = "steelblue3", RB2 = "slategray3", RB3 = "paleturquoise3", RB4 = "#00BFC4", RB5 = "turquoise", RB6 = "turquoise4", RB7 = "lightblue1", RB8 = "lightskyblue2" ),
     Identity=c(LC1= "slateblue2", LC2="plum", EN="lightgoldenrod", VA="sandybrown",LP="violetred3",BA="tomato1", HR="palevioletred3", IM="#99A800",FB="tan3"))
 
-# Read in milk cell literature gene list
-genes <- c("ABCG2","ATXN1","CD44","ENG","THY1","VIM","EPCAM","ITGA4","KRT14","KRT18","LALBA","POU5F1","SOX2","NANOG","KLF4","PODXL","NES","ITGB1","KIT","KRT5","PROM1")
+#Subsample cells from large clusters
+pD.sub <- subset(pD,pD$Epithelial.clusters=="Basal"| pD$Epithelial.clusters=="Luminal_HR" | pD$Epithelial.clusters=="Luminal_LP" | pD$Epithelial.clusters=="Luminal_HMC1"| pD$Epithelial.clusters=="Luminal_HMC2")
 
-# Sample cells from large clusters
-pD.sub <- subset(pD, pD$Epithelial.clusters=="Luminal_HMC1"| pD$Epithelial.clusters=="Luminal_HMC2")
-
-subsP <- group_by(pD, Identity) %>%
-        do(sample_n(.,1000)) %>%
-        mutate(Identity=forcats::fct_relevel(Identity, c("LC1", "LC2", "LP", "HR", "BA", "VA", "EN","FB","IM"))) %>%
+subsP <- group_by(pD.sub, Identity) %>%
+        do(sample_n(.,300)) %>%
+        mutate(Identity=forcats::fct_relevel(Identity, c("BA", "HR", "LP", "LC1", "LC2"))) %>%
         arrange(Identity, State)
 
 subsP <- as.data.frame(subsP)
-
-mheat <- as.matrix(logcounts(sce)[genes,as.character(subsP$Barcode)])
+mheat <- logcounts(sce)[genes,as.character(subsP$Barcode)]
 mheat <- mheat/apply(mheat,1,max) # Scale to 0-1 for visualization
 
 #Set data for heat-map column name annotations
@@ -69,13 +72,12 @@ h <-  pheatmap(mheat,
          annotation_legend=TRUE,
 	       annotation_col=annoCol,
          annotation_colors=my_colour,
-	       fontsize=12)
+	       fontsize=9)
 
-ggsave(filename="../../data/Supp_Fig_6/Heatmap_stem_ClusterSignatures.pdf",h[[4]],width=8,height=5)
+ggsave(filename="../../data/Supp_Fig_6/Heatmap_epithelial_ClusterSignatures.pdf",h[[4]],width=8,height=7)
 
 ```
 *Saving session info*
 ```{r}
 sessionInfo()
 ```
-

@@ -12,7 +12,6 @@ output:
 **Setting up**
 
 *Load data and packages*
-Firstly we must load the important libraries and then the data.
 ```{r, message=FALSE}
 #load libraries
 library(scater)
@@ -34,8 +33,8 @@ pD <- as.data.frame(colData(sce))
 ```{r}
 sce
 ```
-**Figure 2a**
-*UMAP colored by cell type*
+***Figure 2a***
+*Five major epithelial clusters were identified in our data set consisting of a NMCs myoepithelial (MY), luminal hormone responsive (HR) and luminal progenitor (LP) cluster and LMC major luminal clusters 1 and 2 (LC1 and LC2).*
 ```{r}
 #Load epithelial clusters colors
 Epithelial <- c("Luminal_HMC1", "Luminal_HMC2", "Luminal_LP","Basal", "Luminal_HR","Stroma")
@@ -53,8 +52,8 @@ pdf("../../data/Fig_2/Fig_2a.pdf", width=12, height=8)
 UMAP
 dev.off()
 ```
-**Figure 2b**
-*Individual UMAPs coloured by gene of interest for epithelial cells*
+***Figure 2b***
+*Uniform manifold approximation and projection (UMAP)s coloured by marker genes characterizing the various clusters.*
 ```{r}
 #Load colours
 colour <- colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100)

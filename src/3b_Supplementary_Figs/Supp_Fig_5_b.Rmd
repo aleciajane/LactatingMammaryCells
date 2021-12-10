@@ -1,5 +1,5 @@
 ---
-title: "Supp_Fig_3b"
+title: "Supp_Fig_5b"
 author: "Alecia-Jane Twigger"
 date: "`r Sys.Date()`"
 output:
@@ -34,8 +34,8 @@ library(dendextend)
 sce <- readRDS("../../data/sce_all_nospike_2.rds")
 ```
 
-**Supplementary Figure 3b**
-Looking at fresh vs. frozen milk cells
+**Supplementary Figure 5b**
+*UMAP visualisation of lactating mammary cells (LMC) that were either processed from fresh milk or frozen down separately were found to overlap with no major cluster differences.*
 ```{r}
 #mapping fresh vs frozen onto sce
 Sample <- c("HMC1","HMC2","HMC3","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9","RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8")
@@ -57,7 +57,7 @@ UMAP <- ggplot(Fresh, mapping=aes(x=UMAP1, y=UMAP2, color=FreshOrNot)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/UMAP_FreshOrNot.pdf", width=12, height=8)
+pdf("../../data/Supp_Fig_5/Supp_Fig_5b_FreshOrNot.pdf", width=12, height=8)
 UMAP
 dev.off()
 
@@ -72,7 +72,7 @@ UMAP <- ggplot(Frozen, mapping=aes(x=UMAP1, y=UMAP2, color=FreshOrNot)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/UMAP_FrozenOrNot.pdf", width=12, height=8)
+pdf("../../data/Supp_Fig_5/Supp_Fig_5b_FrozenOrNot.pdf", width=12, height=8)
 UMAP
 dev.off()
 ```

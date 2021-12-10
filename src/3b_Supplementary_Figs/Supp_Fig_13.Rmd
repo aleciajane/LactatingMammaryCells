@@ -9,6 +9,8 @@ output:
   pdf_document: default
 ---
 
+Make sure before running this script you have run "Fig_3c.Rmd" so that you have generated the "sce_immunesub.rds" file.
+
 **Setting up**
 
 *Load data and packages*
@@ -17,574 +19,80 @@ Firstly we must load the important libraries and then the data.
 #load libraries
 library(plyr)
 library(dplyr)
-library(scater)
 library(scran)
+library(scater)
 library(ggplot2)
-library(Seurat)
+library(knitr)
+
+#libraries for reformatting data for bulk DEG analysis
 library(SingleCellExperiment)
+library(edgeR)
+library(EnhancedVolcano)
+
+#specific for GO term analysis
+library(topGO)
+#library(org.Hs.eg.db)
+
+#specific for dendogram+heatmap
+library(cowplot)
+library(viridis)
+library(RColorBrewer)
+library(pheatmap)
+library(gridExtra)
+library(gridGraphics)
 
 #load data
-sce <- readRDS("../../data/sce_all_nospike_2.rds")
-ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
-
-#mapping epithelial cell types onto sce
-Classes <- c("LC1", "LC2", "LP","BA", "HR", "EN",  "VA","IM", "FB")
-Epithelial <- c("Luminal_HMC1", "Luminal_HMC2", "Luminal_LP","Basal", "Luminal_HR", "Stroma",  "Stroma","Stroma", "Stroma")
-colData(sce)$Epithelial.clusters <- mapvalues(colData(sce)$Identity, Classes, Epithelial)
+sce.sub <- readRDS("../../data/sce_immunesub.rds")
 ```
-*Checking the data looks good*
+*Check sce*
 ```{r}
-brca
-#colData(brca.exp)
-sce
+sce.sub
 ```
-**Setting up the data from the TCGA**
-*Following the vignettes from bioconductor for TCGAbiolinks*
-https://bioconductor.org/packages/release/bioc/html/TCGAbiolinks.html
+***Supp_Fig_13***
+*Heatmap displaying the expression of genes characteristic of different immune cell subpopulations across both lactation and non-lactation associated mammary cells (LMC and NMCs).*
 ```{r}
-library(SummarizedExperiment)
-library(TCGAbiolinks)
-query.exp <- GDCquery(project = "TCGA-BRCA", 
-legacy = TRUE,
-data.category = "Gene expression",
-data.type = "Gene expression quantification",
-platform = "Illumina HiSeq", 
-file.type = "results",
-experimental.strategy = "RNA-Seq",
-sample.type = c("Primary Tumor","Solid Tissue Normal"))
-GDCdownload(query.exp)
-brca.exp <- GDCprepare(query = query.exp, save = TRUE, save.filename = "brcaExp.rda")
+m.imm <- as.matrix(logcounts(sce.sub))
+pD.sub <- as.data.frame(colData(sce.sub))
+
+#Load genes
+genes <- c("CD68","FCER1G","CSF1R","ALCAM","CD86","HLA-DRB1","ICAM1","CD14","FCGR3A","ITGAX","ITGAM","ANPEP","C1QB","MMP9","CD163","CD33","MSR1","IL3RA","LILRA4","NT5E","PDGFRB","VCAM1","MPO","CD209","CD34","TNFRSF4","CD4","IL7R","TIGIT","LAG3","PDCD1","CTLA4","CD3D","BCL11B","LCK","KLRC1","FYN","CD8A","CD40LG","FOXP3","BATF","GZMA","GZMB","GZMH","GNLY","KLRD1","XCL1","NCAM1","CXCL13","CD200","JCHAIN","CD19","CD27","CD79A","MS4A1","FCGR3B","CEACAM8")
+
+#Load colours
+my_colour_sub = list(
+    Sample=c(HMC1 = "salmon1", HMC2 = "peachpuff2", HMC3 = "burlywood", HMC4 = "#F8766D", HMC2B="peachpuff3", HMC5="salmon2", HMC6="pink1", HMC7="indianred2", HMC8="indianred4", HMC9= "hotpink2", RB1 = "steelblue3", RB2 = "slategray3", RB3 = "paleturquoise3", RB4 = "#00BFC4", RB5 = "turquoise", RB6= "turquoise4", RB7="lightblue1", RB8="lightskyblue2"),
+    GraphClusters.sub=c(C1 = "lightgoldenrod3", C2 = "lightgoldenrod4", C3 = "olivedrab", C4 = "palegreen3", C5 = "lemonchiffon2", C6 = "gold4", C7 = "#99A800", C8="gold", C9="darkolivegreen",C10 ="lightsalmon3" , C11 ="yellow4" , C12 = "tan1", C13 = "palegreen4", C14 = "palegreen3", C15 = "orange1"))
+
+#Heatmap for graphclusters.sub
+subsP <- group_by(pD.sub, GraphClusters.sub) %>%
+        mutate(GraphClusters.sub=forcats::fct_relevel(GraphClusters.sub,c("C9","C11","C12","C8","C2","C7","C6","C4","C3","C10","C5","C1"))) %>%
+        arrange(GraphClusters.sub, Sample)
+
+subsP <- as.data.frame(subsP)
+
+all(genes %in% rownames(m.imm))
+mheat <- m.imm[genes,as.character(subsP$Barcode)]
+
+mheat <- mheat/apply(mheat,1,max) # Scale to 0-1 for visualization
+
+#Set data for heat-map column name annotations
+annoCol <- data.frame(Sample=subsP$Sample, GraphClusters.sub=subsP$GraphClusters.sub)
+row.names(annoCol) <- subsP$Barcode
+annoCol %>% arrange(GraphClusters.sub, Sample)
+
+y <-  pheatmap(mheat,
+	 cluster_rows=TRUE,
+	 cluster_cols=FALSE,
+         show_rownames=TRUE,
+         show_colnames=FALSE,
+         annotation_legend=TRUE,
+	       annotation_col=annoCol,
+         annotation_colors=my_colour_sub,
+	      # gaps_col=c(1200, 1400),
+	       fontsize=12)
+
+ggsave(filename="../../data/Supp_Fig_13/Supp_Fig_13.pdf",y[[4]],width=8,height=7)
 ```
-*Checking the data looks good*
-```{r}
-brca.exp
-```
-*Looking at the number of samples per subtypes*
-```{r}
-#colData(brca.exp)$paper_BRCA_Subtype_PAM50 shows the PAM50 classifications
-table(colData(brca.exp)$paper_BRCA_Subtype_PAM50) #totaL 1083
- #Basal   Her2   LumA   LumB Normal 
- #  190     82    562    209     40 
-```
-*Filter the data*
-```{r}
-#Filter and normalize cells
-dataPrep <- TCGAanalyze_Preprocessing(object = brca.exp, cor.cut = 0.6)                      
-dataNorm <- TCGAanalyze_Normalization(tabDF = dataPrep,
-                                      geneInfo = geneInfo,
-                                      method = "gcContent")
-dim(dataNorm)
-dataNorm[1:6,1:6]
-#dataFilt <- TCGAanalyze_Filtering(tabDF = dataNorm,
-#                                  method = "quantile", 
-#                                  qnt.cut =  0.25)
-#dim(dataFilt) #I don't need to filter the genes as this takes the top 25%
-```
-*Save the dataset*
-```{r}
-brca <- brca.exp
-rownames(brca) <- rowData(brca)$gene_id
-gene.universe <- Reduce(intersect, list(rownames(brca),rownames(dataNorm)))
-brca <- brca[gene.universe,]
-dataNorm <- dataNorm[gene.universe,]
-
-assay(brca, withDimnames=TRUE, "NormData") <- dataNorm
-saveRDS(brca,file="../../data/RB_HMC_merged/TCGA/brca.norm.rds")
-```
-
-**Generating all cell cluster subtype signatures**
-
-```{r}
-table(colData(sce)$Epithelial.clusters)
-#Stroma   Luminal_LP Luminal_HMC1 Luminal_HMC2          C17        Basal   Luminal_HR 
-#     0        15744        17229        36915            0        12348        11187
-
-markers <- findMarkers(sce,groups=colData(sce)$Epithelial.clusters, direction="up")
-markers
-#Stroma Luminal_LP Luminal_HMC1 Luminal_HMC2 C17 Basal Luminal_HR #Stroma and C17 are not relevant
-write.csv(markers$Luminal_LP,"../../data/Supp_Fig_13/CellSignatures/DEGs_LPvsAllCellTypes.csv")
-write.csv(markers$Luminal_HMC1,"../../data/Supp_Fig_13/CellSignatures/DEGs_LC1vsAllCellTypes.csv")
-write.csv(markers$Luminal_HMC2,"../../data/Supp_Fig_13/CellSignatures/DEGs_LC2vsAllCellTypes.csv")
-write.csv(markers$Basal,"../../data/Supp_Fig_13/CellSignatures/DEGs_BAvsAllCellTypes.csv")
-write.csv(markers$Luminal_HR,"../../data/Supp_Fig_13/CellSignatures/DEGs_HRvsAllCellTypes.csv")
-write.csv(markers$Stroma,"../../data/Supp_Fig_13/CellSignatures/DEGs_STvsAllCellTypes.csv")
-
-#LP
-Raw.LP <- markers$Luminal_LP
-Sig.LP <- subset(Raw.LP, Raw.LP$FDR == 0 )#& Raw.LP$summary.logFC>1)
-LP <- rownames(Sig.LP) #3963
-#LC1
-Raw.LC1 <- markers$Luminal_HMC1
-Sig.LC1 <- subset(Raw.LC1, Raw.LC1$FDR == 0 )#& Raw.LP$summary.logFC > 1)
-LC1 <- rownames(Sig.LC1) #3766
-#LC2
-Raw.LC2 <- markers$Luminal_HMC2
-Sig.LC2 <- subset(Raw.LC2, Raw.LC2$FDR == 0 )#& Raw.LP$summary.logFC > 1)
-LC2 <- rownames(Sig.LC2) #2036
-#BA
-Raw.BA <- markers$Basal
-Sig.BA <- subset(Raw.BA, Raw.BA$FDR == 0 )#& Raw.LP$summary.logFC > 1)
-BA <- rownames(Sig.BA) #1640
-#HR
-Raw.HR <- markers$Luminal_HR
-Sig.HR <- subset(Raw.HR, Raw.HR$FDR == 0)# & Raw.LP$summary.logFC > 1)
-HR <- rownames(Sig.HR) #3307
-#ST
-Raw.ST <- markers$Stroma
-Sig.ST <- subset(Raw.ST, Raw.ST$FDR == 0 )#& Raw.LP$summary.logFC > 1)
-ST <- rownames(Sig.ST) #2175
-
-#Find which genes are common between HMC1 and HMC2 significant genes
-HMC <- intersect(LC2,LC1) #1292
-
-#Find which genes are not rare in each cell type
-LP.notRare <- intersect(LP, c(LC1,LC2,BA,HR,ST)) #3478 length(LP.notRare) 
-LC1.notRare <- intersect(LC1, c(LP,LC2,BA,HR,ST)) #2961 length(LC1.notRare) 
-LC2.notRare <- intersect(LC2, c(LP,LC1,BA,HR,ST)) #1745 length(LC2.notRare) 
-BA.notRare <- intersect(BA, c(LP,LC1,LC2,HR,ST)) #1510 length(BA.notRare) 
-HR.notRare <- intersect(HR, c(LP,LC1,LC2,BA,ST)) #2983 length(HR.notRare) 
-ST.notRare <- intersect(ST, c(LP,LC1,LC2,BA,HR)) #2837 length(HR.notRare) 
-
-LC1.notRared <- intersect(LC1, c(LC2,BA,HR,ST)) #2961 length(LC1.notRare) 
-LC2.notRared <- intersect(LC2, c(LC1,BA,HR,ST)) #1745 length(LC2.notRare)
-
-#Remove genes that are not rare for each cell type to make a signature
-LP.is.not.rare <- rownames(Sig.LP) %in% LP.notRare
-LP.genes <- subset(Sig.LP,!LP.is.not.rare) #485
-LC1.is.not.rare <- rownames(Sig.LC1) %in% LC1.notRare
-LC1.genes <- subset(Sig.LC1,!LC1.is.not.rare) #805
-LC2.is.not.rare <- rownames(Sig.LC2) %in% LC2.notRare
-LC2.genes <- subset(Sig.LC2,!LC2.is.not.rare) #291
-BA.is.not.rare <- rownames(Sig.BA) %in% BA.notRare
-BA.genes <- subset(Sig.BA,!BA.is.not.rare) #130
-HR.is.not.rare <- rownames(Sig.HR) %in% HR.notRare
-HR.genes <- subset(Sig.HR,!HR.is.not.rare) #324
-ST.is.not.rare <- rownames(Sig.ST) %in% ST.notRare
-ST.genes <- subset(Sig.ST,!ST.is.not.rare) #430
-
-LC1.is.not.rared <- rownames(Sig.LC1) %in% LC1.notRared
-LC1.geneswithLP <- subset(Sig.LC1,!LC1.is.not.rared) #805
-LC2.is.not.rared <- rownames(Sig.LC2) %in% LC2.notRared
-LC2.geneswithLP <- subset(Sig.LC2,!LC2.is.not.rared) #291
-
-#These CSV files are used to Generate Supplementary Table 10
-write.csv(LP.genes,"../../data/Supp_Fig_13/CellSignatures/LP_Signature.csv")
-write.csv(LC1.genes,"../../data/Supp_Fig_13/CellSignatures/LC1_Signature.csv")
-write.csv(LC2.genes,"../../data/Supp_Fig_13/CellSignatures/LC2_Signature.csv")
-write.csv(BA.genes,"../../data/Supp_Fig_13/CellSignatures/BA_Signature.csv")
-write.csv(HR.genes,"../../data/Supp_Fig_13/CellSignatures/HR_Signature.csv")
-write.csv(ST.genes,"../../data/Supp_Fig_13/CellSignatures/ST_Signature.csv")
-
-write.csv(LC1.geneswithLP,"../../data/Supp_Fig_13/CellSignatures/LC1_Signature_withLP.csv")
-write.csv(LC2.geneswithLP,"../../data/Supp_Fig_13/CellSignatures/LC2_Signature_withLP.csv")
-```
-*Making the plots with the TCGA data*
-```{r}
-#colData(brca.exp)$paper_BRCA_Subtype_PAM50 shows the PAM50 classifications
-#removing the samples without the PAM50 classification
-brca
-colData(brca)$has.pam50 <- !is.na(colData(brca)$paper_BRCA_Subtype_PAM50)
-brca <- brca[,colData(brca)$has.pam50]
-brca
-pD <- as.data.frame(colData(brca))
-```
-**Comparing human mammary signatures from Pfefferle et al. 2015**
-*Creating Seurat object*
-Now attempting to add to the "slot" within data frame
-```{r}
-pam50.kind <- c("Basal","Normal","Her2","LumB","LumA")
-pam50colours <- c("chocolate1","white","darkseagreen2", "mediumpurple", "steelblue1")
-
-pD <- as.data.frame(colData(brca))
-pD.ordered <- group_by(pD, paper_BRCA_Subtype_PAM50) %>%
-  ungroup(paper_BRCA_Subtype_PAM50) %>%
-        mutate(paper_BRCA_Subtype_PAM50=forcats::fct_relevel(paper_BRCA_Subtype_PAM50, c("Basal","Normal","Her2","LumB","LumA"))) %>%
-        arrange(paper_BRCA_Subtype_PAM50)
-
-brca <- brca[,as.character(pD.ordered$barcode)]
-
-tcga <- Seurat::CreateSeuratObject(counts = assay(brca,withDimnames = TRUE, "NormData"), min.cells = 3, project = "TCGA_tumours")
-#tcga <- Seurat::AddMetaData(object = tcga, metadata = pD.ordered$Sample, col.name = "Sample")
-tcga <- Seurat::AddMetaData(object = tcga, metadata = pD.ordered$paper_BRCA_Subtype_PAM50, col.name = "PAM50")
-tcga <- NormalizeData(object = tcga, normalization.method = "LogNormalize", scale.factor = 1e4)
-
-head(tcga@meta.data)
-```
-*Importing mammary signatures from Pfefferle et al. 2015 and then mapping the signatures*
-Make sure you have run "Fig_4_a.Rmd" prior to running this script so that these signature csv files are avaliable
-```{r}
-#import published gene list made in "RB_HMC_merged_Fig4.Rmd"
-BC_list <- read.csv("../../data/Fig_4/RB_Published_Basal_Signature.csv",stringsAsFactors = FALSE)
-LP_list <- read.csv("../../data/Fig_4/RB_Published_LP_Signature.csv",stringsAsFactors = FALSE)
-HR_list <- read.csv("../../data/Fig_4/RB_Published_HR_Signature.csv",stringsAsFactors = FALSE)
-SC_list <- read.csv("../../data/Fig_4/RB_Published_Stromal_Signature.csv",stringsAsFactors = FALSE)
-```
-*Generating Basal score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(BC_list$hgnc_symbol), ctrl = 20, name= "PublishedBasal")
-names(x=tcga[[]])
-#[1] "orig.ident"        "nCount_RNA"        "nFeature_RNA"   "PublishedBasal1"  
-
-head(x=tcga[[]])
-#The following features are not present in the object: LGALS7B, ZP4, not searching for symbol synonyms
-
-FeatureScatter(tcga, feature1="PublishedBasal1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-BC.plot <- VlnPlot(object = tcga, features = c("PublishedBasal1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-BC.plot
-```
-*Generating Luminal progenitor score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(LP_list$hgnc_symbol), ctrl = 20, name= "PublishedLP")
-names(x=tcga[[]])
-#[1] "orig.ident"         "nCount_RNA"         "nFeature_RNA"       "Sample"             "prcntMito"          "GraphClusters"     
-#[7] "S.Score"            "G2M.Score"          "Phase"              "LuminalProgenitor1" "HormoneResponsive1" "PublishedBasal1"            
-#[13] "PublishedLP1"   
-
-head(x=tcga[[]])
-#The following features are not present in the object: PRR4, DEFB4B, KRTAP6-3, RPL29P12, LOC728715, RPL36P14, not searching for symbol synonyms
-
-FeatureScatter(tcga, feature1="PublishedLP1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-LP.plot <- VlnPlot(object = tcga, features = c("PublishedLP1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-LP.plot
-```
-*Generating Hormone responsive score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(HR_list$hgnc_symbol), ctrl = 20, name= "PublishedHR")
-names(x=tcga[[]])
-#[1] "orig.ident"         "nCount_RNA"         "nFeature_RNA"       "Sample"             "prcntMito"          "GraphClusters"     
-#[7] "S.Score"            "G2M.Score"          "Phase"              "LuminalProgenitor1" "HormoneResponsive1" "PublishedBasal1"       
-#[13] "PublishedLP1"       "PublishedHR1"  
-
-head(x=tcga[[]])
-
-FeatureScatter(tcga, feature1="PublishedHR1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-HR.plot <- VlnPlot(object = tcga, features = c("PublishedHR1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-HR.plot
-```
-*Generating Stromal score for all cell tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(SC_list$hgnc_symbol), ctrl = 20, name= "PublishedSC")
-names(x=tcga[[]])
-#[1] "orig.ident"         "nCount_RNA"         "nFeature_RNA"       "Sample"             "prcntMito"          "GraphClusters"     
-#[7] "S.Score"            "G2M.Score"          "Phase"              "LuminalProgenitor1" "HormoneResponsive1" "PublishedBasal1"       
-#[13] "PublishedLP1"       "PublishedHR1"       "PublishedSC1"   
-
-head(x=tcga[[]])
-
-FeatureScatter(tcga, feature1="PublishedSC1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-HR.plot <- VlnPlot(object = tcga, features = c("PublishedSC1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-HR.plot
-```
-***Now examining signatures derived from my data***
-*Generating Basal score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(rownames(BA.genes)), ctrl = 20, name= "MyBasal")
-#tcga <- AddModuleScore(tcga, features = list(rownames(Sig.BA)), ctrl = 20, name= "MyBasal")
-names(x=tcga[[]])
-#[1] "orig.ident"        "nCount_RNA"        "nFeature_RNA"   "PublishedBasal1"  
-
-head(x=tcga[[]])
-#The following features are not present in the object: LGALS7B, ZP4, not searching for symbol synonyms
-
-FeatureScatter(tcga, feature1="MyBasal1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-BC.plot <- VlnPlot(object = tcga, features = c("MyBasal1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-BC.plot
-```
-*Generating Luminal progenitor score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(rownames(LP.genes)), ctrl = 20, name= "MyLP")
-#tcga <- AddModuleScore(tcga, features = list(rownames(Sig.LP)), ctrl = 20, name= "MyLP")
-names(x=tcga[[]])
-#[1] "orig.ident"         "nCount_RNA"         "nFeature_RNA"       "Sample"             "prcntMito"          "GraphClusters"     
-#[7] "S.Score"            "G2M.Score"          "Phase"              "LuminalProgenitor1" "HormoneResponsive1" "PublishedBasal1"            
-#[13] "PublishedLP1"   
-
-head(x=tcga[[]])
-#The following features are not present in the object: PRR4, DEFB4B, KRTAP6-3, RPL29P12, LOC728715, RPL36P14, not searching for symbol synonyms
-
-FeatureScatter(tcga, feature1="MyLP1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-LP.plot <- VlnPlot(object = tcga, features = c("MyLP1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-LP.plot
-```
-*Generating Hormone responsive score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(rownames(HR.genes)), ctrl = 20, name= "MyHR")
-#tcga <- AddModuleScore(tcga, features = list(rownames(Sig.HR)), ctrl = 20, name= "MyHR")
-names(x=tcga[[]])
-#[1] "orig.ident"         "nCount_RNA"         "nFeature_RNA"       "Sample"             "prcntMito"          "GraphClusters"     
-#[7] "S.Score"            "G2M.Score"          "Phase"              "LuminalProgenitor1" "HormoneResponsive1" "PublishedBasal1"       
-#[13] "PublishedLP1"       "PublishedHR1"  
-
-head(x=tcga[[]])
-
-FeatureScatter(tcga, feature1="MyHR1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-HR.plot <- VlnPlot(object = tcga, features = c("MyHR1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-HR.plot
-```
-*Generating Stromal score for all cell tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(rownames(ST.genes)), ctrl = 20, name= "MySC")
-#tcga <- AddModuleScore(tcga, features = list(rownames(Sig.ST)), ctrl = 20, name= "MySC")
-names(x=tcga[[]])
-#[1] "orig.ident"         "nCount_RNA"         "nFeature_RNA"       "Sample"             "prcntMito"          "GraphClusters"     
-#[7] "S.Score"            "G2M.Score"          "Phase"              "LuminalProgenitor1" "HormoneResponsive1" "PublishedBasal1"       
-#[13] "PublishedLP1"       "PublishedHR1"       "PublishedSC1"   
-
-head(x=tcga[[]])
-
-FeatureScatter(tcga, feature1="MySC1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-HR.plot <- VlnPlot(object = tcga, features = c("MySC1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-HR.plot
-```
-*Generating LC1 score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(rownames(LC1.genes)), ctrl = 20, name= "MyLC1Sig")#
-#tcga <- AddModuleScore(tcga, features = list(rownames(Sig.LC1)), ctrl = 20, name= "MyLC1Sig")
-names(x=tcga[[]])
-#[1] "orig.ident"        "nCount_RNA"        "nFeature_RNA"   "PublishedBasal1"  
-
-head(x=tcga[[]])
-#The following features are not present in the object: LGALS7B, ZP4, not searching for symbol synonyms
-
-FeatureScatter(tcga, feature1="MyLC1Sig1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-BC.plot <- VlnPlot(object = tcga, features = c("MyLC1Sig1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-BC.plot
-```
-*Generating LC2 score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(rownames(LC2.genes)), ctrl = 20, name= "MyLC2Sig")
-#tcga <- AddModuleScore(tcga, features = list(rownames(Sig.LC2)), ctrl = 20, name= "MyLC2Sig")
-names(x=tcga[[]])
-#[1] "orig.ident"         "nCount_RNA"         "nFeature_RNA"       "Sample"             "prcntMito"          "GraphClusters"     
-#[7] "S.Score"            "G2M.Score"          "Phase"              "LuminalProgenitor1" "HormoneResponsive1" "PublishedBasal1"            
-#[13] "PublishedLP1"   
-
-head(x=tcga[[]])
-#The following features are not present in the object: PRR4, DEFB4B, KRTAP6-3, RPL29P12, LOC728715, RPL36P14, not searching for symbol synonyms
-
-FeatureScatter(tcga, feature1="MyLC2Sig1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-LP.plot <- VlnPlot(object = tcga, features = c("MyLC2Sig1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-LP.plot
-```
-*Generating LC1 score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(rownames(LC1.geneswithLP)), ctrl = 20, name= "MyLC1SigWithLP")#
-#tcga <- AddModuleScore(tcga, features = list(rownames(Sig.LC1)), ctrl = 20, name= "MyLC1Sig")
-names(x=tcga[[]])
-#[1] "orig.ident"        "nCount_RNA"        "nFeature_RNA"   "PublishedBasal1"  
-
-head(x=tcga[[]])
-#The following features are not present in the object: LGALS7B, ZP4, not searching for symbol synonyms
-
-FeatureScatter(tcga, feature1="MyLC1SigWithLP1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-BC.plot <- VlnPlot(object = tcga, features = c("MyLC1SigWithLP1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-BC.plot
-```
-*Generating LC2 score for all tumours*
-```{r}
-tcga <- AddModuleScore(tcga, features = list(rownames(LC2.geneswithLP)), ctrl = 20, name= "MyLC2SigWithLP")
-#tcga <- AddModuleScore(tcga, features = list(rownames(Sig.LC2)), ctrl = 20, name= "MyLC2Sig")
-names(x=tcga[[]])
-#[1] "orig.ident"         "nCount_RNA"         "nFeature_RNA"       "Sample"             "prcntMito"          "GraphClusters"     
-#[7] "S.Score"            "G2M.Score"          "Phase"              "LuminalProgenitor1" "HormoneResponsive1" "PublishedBasal1"            
-#[13] "PublishedLP1"   
-
-head(x=tcga[[]])
-#The following features are not present in the object: PRR4, DEFB4B, KRTAP6-3, RPL29P12, LOC728715, RPL36P14, not searching for symbol synonyms
-
-FeatureScatter(tcga, feature1="MyLC2SigWithLP1", feature2="nFeature_RNA", group.by= "PAM50", cols= pam50colours)
-
-LP.plot <- VlnPlot(object = tcga, features = c("MyLC2SigWithLP1"),  pt.size = 0.1, group.by= "PAM50", cols= pam50colours) +
-      geom_hline(yintercept=0, linetype="dashed", color="red")
-LP.plot
-```
-
-*Saving the published scores together*
-```{r}
-head(tcga@meta.data)
-
-metaData <- as.data.frame(tcga@meta.data)
-published <- data.frame(barcode=rownames(metaData),BasalScore =metaData$PublishedBasal1)
-published$LPScore =metaData$PublishedLP1
-published$HRScore =metaData$PublishedHR1
-published$StromScore =metaData$PublishedSC1
-published$MyBAScore =metaData$MyBasal1
-published$MyLPScore =metaData$MyLP1
-published$MyHRScore =metaData$MyHR1
-published$MyStromScore =metaData$MySC1
-published$MyLC1Score =metaData$MyLC1Sig1
-published$MyLC2Score =metaData$MyLC2Sig1
-published$MyLC1ScoreWithLP =metaData$MyLC1SigWithLP1
-published$MyLC2ScoreWithLP =metaData$MyLC2SigWithLP1
-
-write.csv(published, file= "../../data/Published_and_my_tcga_cell_scores.csv")
-
-pD.ordered$BasalScore <- metaData$PublishedBasal1
-pD.ordered$LPScore =metaData$PublishedLP1
-pD.ordered$HRScore =metaData$PublishedHR1
-pD.ordered$StromScore =metaData$PublishedSC1
-pD.ordered$MyBAScore =metaData$MyBasal1
-pD.ordered$MyLPScore =metaData$MyLP1
-pD.ordered$MyHRScore =metaData$MyHR1
-pD.ordered$MySTScore =metaData$MySC
-pD.ordered$MyLC1Score =metaData$MyLC1Sig1
-pD.ordered$MyLC2Score =metaData$MyLC2Sig1
-pD.ordered$MyLC1ScoreWithLP =metaData$MyLC1SigWithLP1
-pD.ordered$MyLC2ScoreWithLP =metaData$MyLC2SigWithLP1
-```
-**Supplementary Fig 13a**
-*Replotting My Basal scores*
-```{r}
-Basal <- ggplot(pD.ordered, aes(x=paper_BRCA_Subtype_PAM50, y=MyBAScore, fill=paper_BRCA_Subtype_PAM50)) +
-    geom_boxplot(draw_quantiles=0.5) +
-    ylab("Basal score") +
-    ggtitle("My_BasalScore") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(pam50colours,pam50.kind)) + scale_color_manual(values=setNames(colour.names,sample.set)) +ylim(-0.2,0.8)
-Basal
-
-pdf("../../data/Supp_Fig_13/Supp_Fig_13_ai.pdf", width=10, height=6)
-Basal
-dev.off()
-```
-*Replotting My LP scores*
-```{r}
-LP <- ggplot(pD.ordered, aes(x=paper_BRCA_Subtype_PAM50, y=MyLPScore, fill=paper_BRCA_Subtype_PAM50)) +
-    geom_boxplot(draw_quantiles=0.5) +
-    ylab("LP score") +
-    ggtitle("My_LPScore") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(pam50colours,pam50.kind)) + scale_color_manual(values=setNames(colour.names,sample.set)) +ylim(-0.2,0.8)
-LP
-
-pdf("../../data/Supp_Fig_13/Supp_Fig_13_aiv.pdf", width=10, height=6)
-LP
-dev.off()
-```
-*Replotting My HR scores*
-```{r}
-HR <- ggplot(pD.ordered, aes(x=paper_BRCA_Subtype_PAM50, y=MyHRScore, fill=paper_BRCA_Subtype_PAM50)) +
-    geom_boxplot(draw_quantiles=0.5) +
-    ylab("HR score") +
-    ggtitle("My_HRScore") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(pam50colours,pam50.kind)) + scale_color_manual(values=setNames(colour.names,sample.set)) +ylim(-0.2,0.8)
-HR
-
-pdf("../../data/Supp_Fig_13/Supp_Fig_13_aiii.pdf", width=10, height=6)
-HR
-dev.off()
-```
-*Replotting Stromal scores*
-```{r}
-Strom <- ggplot(pD.ordered, aes(x=paper_BRCA_Subtype_PAM50, y=MySTScore, fill=paper_BRCA_Subtype_PAM50)) +
-    geom_boxplot(draw_quantiles=0.5) +
-    ylab("Stromal score") +
-    ggtitle("My_StromScore") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(pam50colours,pam50.kind)) + scale_color_manual(values=setNames(colour.names,sample.set)) +ylim(-0.2,0.8)
-Strom
-
-pdf("../../data/Supp_Fig_13/Supp_Fig_13_aii.pdf", width=10, height=6)
-Strom 
-dev.off()
-```
-*Replotting My LC1 scores*
-```{r}
-LC1 <- ggplot(pD.ordered, aes(x=paper_BRCA_Subtype_PAM50, y=MyLC1Score, fill=paper_BRCA_Subtype_PAM50)) + 
-    geom_boxplot(draw_quantiles=0.5) +
-    ylab("LC1 score") +
-    ggtitle("My_LC1Score") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(pam50colours,pam50.kind)) + scale_color_manual(values=setNames(colour.names,sample.set)) +ylim(-0.2,0.8)
-LC1
-
-pdf("../../data/Supp_Fig_13/Supp_Fig_13_av.pdf", width=10, height=6)
-LC1
-dev.off()
-```
-*Replotting My LC2 scores*
-```{r}
-LC2 <- ggplot(pD.ordered, aes(x=paper_BRCA_Subtype_PAM50, y=MyLC2Score, fill=paper_BRCA_Subtype_PAM50)) +
-    geom_boxplot(draw_quantiles=0.5) +
-    ylab("LC2 score") +
-    ggtitle("My_LC2Score") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(pam50colours,pam50.kind)) + scale_color_manual(values=setNames(colour.names,sample.set)) +ylim(-0.2,0.8)
-LC2
-
-pdf("../../data/Supp_Fig_13/Supp_Fig_13_avi.pdf", width=10, height=6)
-LC2
-dev.off()
-```
-**Supplementary Fig 13b**
-*Replotting My LC1 scores*
-```{r}
-LC1 <- ggplot(pD.ordered, aes(x=paper_BRCA_Subtype_PAM50, y=MyLC1ScoreWithLP, fill=paper_BRCA_Subtype_PAM50)) +
-    geom_boxplot(draw_quantiles=0.5) +
-    ylab("LC1 score") +
-    ggtitle("My_LC1Score_WithLP") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(pam50colours,pam50.kind)) + scale_color_manual(values=setNames(colour.names,sample.set)) +ylim(-0.2,0.8)
-LC1
-
-pdf("../../data/Supp_Fig_13/Supp_Fig_13_bi.pdf", width=10, height=6)
-LC1
-dev.off()
-```
-*Replotting My LC2 scores*
-```{r}
-LC2 <- ggplot(pD.ordered, aes(x=paper_BRCA_Subtype_PAM50, y=MyLC2ScoreWithLP, fill=paper_BRCA_Subtype_PAM50)) +
-    geom_boxplot(draw_quantiles=0.5) +
-    ylab("LC2 score") +
-    ggtitle("My_LC2Score_WithLP") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(pam50colours,pam50.kind)) + scale_color_manual(values=setNames(colour.names,sample.set)) +ylim(-0.2,0.8)
-LC2
-
-pdf("../../data/Supp_Fig_13/Supp_Fig_13_bii.pdf", width=10, height=6)
-LC2
-dev.off()
-```
-**Saving session info**
+*Saving session info*
 ```{r}
 sessionInfo()
 ```

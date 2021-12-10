@@ -101,8 +101,8 @@ DEGs <- res$table[order(res$table$FDR),]
 dim(DEGs) #12703
 write.csv(DEGs, file= "../../data/Supp_Tables/Supplementary_Table_1.csv")
 ```
-**Fig 2c**
-*Volcano plot of differentially expressed genes between LC1 and LC2*
+***Fig 2c***
+*Volcano plot displaying the findings of the differential gene expression analysis revealed 1,640 genes more highly expressed in LC1 compared to 1,782 genes highly expressed. Significant genes in red with the top 10 being annotated.*
 ```{r}
 ##Specifying labels for top 10 genes
 sig.genes <- subset(DEGs, DEGs$FDR < 10e-8)

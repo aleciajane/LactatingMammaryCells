@@ -15,176 +15,67 @@ output:
 Firstly we must load the important libraries and then the data.
 ```{r, message=FALSE}
 #load libraries
-library(igraph)
-library(dplyr)
-library(ggraph)
-library(ggplot2)
+library(scater)
+library(RColorBrewer)
+library(pheatmap)
 
-#load cells with SCENIC data and adding it together with all other cells that were not included in the analysis
+##load data
 sce <- readRDS("../../data/sce_all_nospike_2.rds")
-SCENIC <- read.csv("../../data/SCENIC/AUC_Matrix.csv",stringsAsFactors = FALSE, row.names = 1)
-colnames(SCENIC) <- factor(paste0(colnames(SCENIC),"Reg"))
-sce.mini <- sce[,rownames(SCENIC)]
-colData(sce.mini) <- cbind(colData(sce.mini), SCENIC, by=rownames(SCENIC))
-notSCENIC <- colData(sce)$Barcode %in% rownames(SCENIC)
-notSCENIC.sce <- sce[,notSCENIC=="FALSE"]
-SCENIC.not <- matrix(-0.1, nrow=90744, ncol=ncol(SCENIC))
-rownames(SCENIC.not) <- colnames(notSCENIC.sce)
-colnames(SCENIC.not) <- colnames(SCENIC)
-colData(notSCENIC.sce) <- cbind(colData(notSCENIC.sce), SCENIC.not, by=rownames(SCENIC.not))
-sce.anno <- cbind(notSCENIC.sce,sce.mini)
+ClustCol <- as.data.frame(read.csv("../../data/Clusters_noSpike_2.csv",stringsAsFactors = FALSE))
 
-#Load ouput from the SCENIC analysis to generate regulon gene graphs
-adj <- read.csv("SCENIC_adj_subset1k.csv")
-trgts <- read.csv(paste0(gene,"(+)_regulon.txt"),header=FALSE)
-# Number of top downstream targets
-topN <- 30
-# Nmber of top downstreams of target that is a TF itself
-topN_secondary <- 5
+pD <- as.data.frame(colData(sce))
 ```
-**Supplementary Figure 9**
-*UMAP coloured by different regulon expression*
+*Check that the data is loaded correctly*
 ```{r}
-#FOXA1
-UMAP <- ggcells(sce.anno, mapping=aes(x=UMAP1, y=UMAP2, color=FOXA1...Reg)) + 
-    geom_point() +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_color_gradientn(colors=c("lightgrey", "lightgrey", "#FCF89B", "#FCF89B","#69CCB2", "#76D1D2", "#434CA7", "#494E76"), breaks=c(-0.1,-0.000000000000000000000000000000011,-0.00000000000000000000000000000001,0,0.25,0.5,0.75,1))
-UMAP
-pdf("../../data/Supp_Fig_9/FOXA1_UMAP.pdf", width=12, height=8)
-UMAP
-dev.off()
-
-#GATA6
-UMAP <- ggcells(sce.anno, mapping=aes(x=UMAP1, y=UMAP2, color=GATA6...Reg)) + 
-    geom_point() +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_color_gradientn(colors=c("lightgrey", "lightgrey", "#FCF89B", "#FCF89B","#69CCB2", "#76D1D2", "#434CA7", "#494E76"), breaks=c(-0.1,-0.000000000000000000000000000000011,-0.00000000000000000000000000000001,0,0.25,0.5,0.75,1))
-UMAP
-pdf("../../data/Supp_Fig_9/GATA6_UMAP.pdf", width=12, height=8)
-UMAP
-dev.off()
-
-#POUF1B
-UMAP <- ggcells(sce.anno, mapping=aes(x=UMAP1, y=UMAP2, color=POUF1B...Reg)) + 
-    geom_point() +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_color_gradientn(colors=c("lightgrey", "lightgrey", "#FCF89B", "#FCF89B","#69CCB2", "#76D1D2", "#434CA7", "#494E76"), breaks=c(-0.1,-0.000000000000000000000000000000011,-0.00000000000000000000000000000001,0,0.25,0.5,0.75,1))
-UMAP
-pdf("../../data/Supp_Fig_9/POUF1B_UMAP.pdf", width=12, height=8)
-UMAP
-dev.off()
-
-#SPIB
-UMAP <- ggcells(sce.anno, mapping=aes(x=UMAP1, y=UMAP2, color=SPIB...Reg)) + 
-    geom_point() +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_color_gradientn(colors=c("lightgrey", "lightgrey", "#FCF89B", "#FCF89B","#69CCB2", "#76D1D2", "#434CA7", "#494E76"), breaks=c(-0.1,-0.000000000000000000000000000000011,-0.00000000000000000000000000000001,0,0.25,0.5,0.75,1))
-UMAP
-pdf("../../data/Supp_Fig_9/SPIB_UMAP.pdf", width=12, height=8)
-UMAP
-dev.off()
+sce
 ```
-*Graph of different regulon genes*
+***Supp_Fig_9***
+*Heatmap displaying the expression of key genes previously described in human milk cells across all lactation associated mammary cells (LMC) and non-lactation associated mammary cells (NMC) subtypes.*
 ```{r}
-require(igraph)
-require(dplyr)
-require(ggraph)
+set.seed(300)
 
-#FOXA1
-gene <- "FOXA1"
-adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
-adj <- group_by(adj,TF) %>%
-    mutate(rnk=rank(-importance))
-adj <- adj[adj$rnk <= topN_secondary | adj$TF ==gene,]
-adj <- adj[adj$rnk <= topN,]
-istrgt <- adj$target[adj$TF==gene]
-adj <- adj[adj$TF %in% c(gene,istrgt),]
+#Select colours
+my_colour = list(
+    Sample=c(HMC1 = "salmon1", HMC2 = "peachpuff2", HMC3 = "burlywood", HMC4 = "#F8766D", HMC2B="peachpuff3", HMC5="salmon2", HMC6="pink1", HMC7="indianred2", HMC8="indianred4", HMC9="hotpink2", RB1 = "steelblue3", RB2 = "slategray3", RB3 = "paleturquoise3", RB4 = "#00BFC4", RB5 = "turquoise", RB6 = "turquoise4", RB7 = "lightblue1", RB8 = "lightskyblue2" ),
+    Identity=c(LC1= "slateblue2", LC2="plum", EN="lightgoldenrod", VA="sandybrown",LP="violetred3",BA="tomato1", HR="palevioletred3", IM="#99A800",FB="tan3"))
 
-colnames(adj) <- c("from","to","importance","rnk")
-g <- graph_from_data_frame(adj,directed=TRUE)
+# Read in milk cell literature gene list
+genes <- c("ABCG2","ATXN1","CD44","ENG","THY1","VIM","EPCAM","ITGA4","KRT14","KRT18","LALBA","POU5F1","SOX2","NANOG","KLF4","PODXL","NES","ITGB1","KIT","KRT5","PROM1")
 
-ggraph(g, circular=TRUE) + 
-    geom_edge_link0(arrow = arrow(angle = 30, length = unit(0.09, "inches"),
-                              ends = "last", type = "closed"),
-		    color="grey50") +
-    geom_node_point(pch=21,fill="white",color="black") +
-    geom_node_text(aes(label = name), 
-		       size = 3, 
-		       vjust = 2) +
-    theme_void()
+# Sample cells from large clusters
+pD.sub <- subset(pD, pD$Epithelial.clusters=="Luminal_HMC1"| pD$Epithelial.clusters=="Luminal_HMC2")
 
-#GATA6
-gene <- "GATA6"
-adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
-adj <- group_by(adj,TF) %>%
-    mutate(rnk=rank(-importance))
-adj <- adj[adj$rnk <= topN_secondary | adj$TF ==gene,]
-adj <- adj[adj$rnk <= topN,]
-istrgt <- adj$target[adj$TF==gene]
-adj <- adj[adj$TF %in% c(gene,istrgt),]
+subsP <- group_by(pD, Identity) %>%
+        do(sample_n(.,1000)) %>%
+        mutate(Identity=forcats::fct_relevel(Identity, c("LC1", "LC2", "LP", "HR", "BA", "VA", "EN","FB","IM"))) %>%
+        arrange(Identity, State)
 
-colnames(adj) <- c("from","to","importance","rnk")
-g <- graph_from_data_frame(adj,directed=TRUE)
+subsP <- as.data.frame(subsP)
 
-ggraph(g, circular=TRUE) + 
-    geom_edge_link0(arrow = arrow(angle = 30, length = unit(0.09, "inches"),
-                              ends = "last", type = "closed"),
-		    color="grey50") +
-    geom_node_point(pch=21,fill="white",color="black") +
-    geom_node_text(aes(label = name), 
-		       size = 3, 
-		       vjust = 2) +
-    theme_void()
+mheat <- as.matrix(logcounts(sce)[genes,as.character(subsP$Barcode)])
+mheat <- mheat/apply(mheat,1,max) # Scale to 0-1 for visualization
 
-#POUF1B
-gene <- "POUF1B"
-adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
-adj <- group_by(adj,TF) %>%
-    mutate(rnk=rank(-importance))
-adj <- adj[adj$rnk <= topN_secondary | adj$TF ==gene,]
-adj <- adj[adj$rnk <= topN,]
-istrgt <- adj$target[adj$TF==gene]
-adj <- adj[adj$TF %in% c(gene,istrgt),]
+#Set data for heat-map column name annotations
+annoCol <- data.frame(Sample=subsP$Sample, Identity=subsP$Identity)
+row.names(annoCol) <- subsP$Barcode
+annoCol %>% arrange(Identity, Sample)
 
-colnames(adj) <- c("from","to","importance","rnk")
-g <- graph_from_data_frame(adj,directed=TRUE)
+# Plot heatmap
+h <-  pheatmap(mheat,
+	 cluster_rows=FALSE,
+	 cluster_cols=FALSE,
+         show_rownames=TRUE,
+         show_colnames=FALSE,
+         annotation_legend=TRUE,
+	       annotation_col=annoCol,
+         annotation_colors=my_colour,
+	       fontsize=12)
 
-ggraph(g, circular=TRUE) + 
-    geom_edge_link0(arrow = arrow(angle = 30, length = unit(0.09, "inches"),
-                              ends = "last", type = "closed"),
-		    color="grey50") +
-    geom_node_point(pch=21,fill="white",color="black") +
-    geom_node_text(aes(label = name), 
-		       size = 3, 
-		       vjust = 2) +
-    theme_void()
-
-#SPIB
-gene <- "SPIB"
-adj <- adj[adj$TF %in% c(trgts$V1,gene) | adj$target %in% c(trgts$V1,gene) & adj$TF %in% c(trgts$V1,gene), ]
-adj <- group_by(adj,TF) %>%
-    mutate(rnk=rank(-importance))
-adj <- adj[adj$rnk <= topN_secondary | adj$TF ==gene,]
-adj <- adj[adj$rnk <= topN,]
-istrgt <- adj$target[adj$TF==gene]
-adj <- adj[adj$TF %in% c(gene,istrgt),]
-
-colnames(adj) <- c("from","to","importance","rnk")
-g <- graph_from_data_frame(adj,directed=TRUE)
-
-ggraph(g, circular=TRUE) + 
-    geom_edge_link0(arrow = arrow(angle = 30, length = unit(0.09, "inches"),
-                              ends = "last", type = "closed"),
-		    color="grey50") +
-    geom_node_point(pch=21,fill="white",color="black") +
-    geom_node_text(aes(label = name), 
-		       size = 3, 
-		       vjust = 2) +
-    theme_void()
+ggsave(filename="../../data/Supp_Fig_9/Heatmap_stem_ClusterSignatures.pdf",h[[4]],width=8,height=5)
 
 ```
 *Saving session info*
 ```{r}
 sessionInfo()
 ```
+

@@ -1,5 +1,5 @@
 ---
-title: "Supp_Fig_4a"
+title: "Supp_Fig_6a"
 author: "Alecia"
 date: "`r Sys.Date()`"
 output:
@@ -33,15 +33,13 @@ library(dendextend)
 #load data
 sce <- readRDS("../../data/sce_all_nospike_2.rds")
 ```
-**Supplementary Figure 4a**
-*UMAP for each NMC (HMC) sample*
+**Supplementary Figure 6a**
+*UMAPs coloured by each participant’s cell contribution.*
 ```{r}
-########################################################################################################################
 #-----#Each sample coloured individually#-----#
 pD <- as.data.frame(colData(sce))
 grey <- c("grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey","grey")
 
-########################################################################################################################
 #---#Focusing first on HMCs#---#
 RB <- c("RB1","RB2","RB3","RB4","RB5","RB6","RB7","RB8")
 
@@ -61,7 +59,7 @@ UMAP <- ggplot(pD.HMC1, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC1.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC1.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC1)
@@ -82,7 +80,7 @@ UMAP <- ggplot(pD.HMC2, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC2.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC2.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC2)
@@ -103,7 +101,7 @@ UMAP <- ggplot(pD.HMC3, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC3.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC3.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC3)
@@ -124,7 +122,7 @@ UMAP <- ggplot(pD.HMC4, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC4.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC4.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC4)
@@ -145,7 +143,7 @@ UMAP <- ggplot(pD.HMC2B, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC2B.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC2B.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC2B)
@@ -166,7 +164,7 @@ UMAP <- ggplot(pD.HMC5, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC5.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC5.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC5)
@@ -187,7 +185,7 @@ UMAP <- ggplot(pD.HMC6, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC6.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC6.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC6)
@@ -208,7 +206,7 @@ UMAP <- ggplot(pD.HMC7, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC7.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC7.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC7)
@@ -229,7 +227,7 @@ UMAP <- ggplot(pD.HMC8, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC8.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC8.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC8)
@@ -250,14 +248,13 @@ UMAP <- ggplot(pD.HMC9, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_HMC9.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_HMC9.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.HMC9)
 ```
 *UMAP for each NMC (RB) sample*
 ```{r}
-########################################################################################################################
 #---#Focusing first on RBs#---#
 HM <- c("HMC1","HMC2","HMC3","HMC4","HMC2B","HMC5","HMC6","HMC7","HMC8","HMC9")
 
@@ -277,7 +274,7 @@ UMAP <- ggplot(pD.RB1, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB1.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_RB1.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.RB1)
@@ -298,7 +295,7 @@ UMAP <- ggplot(pD.RB2, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB2.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_RB2.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.RB2)
@@ -319,7 +316,7 @@ UMAP <- ggplot(pD.RB3, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB3.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_RB3.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.RB3)
@@ -340,7 +337,7 @@ UMAP <- ggplot(pD.RB4, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB4.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_RB4.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.RB4)
@@ -361,7 +358,7 @@ UMAP <- ggplot(pD.RB5, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB5.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_RB5.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.RB5)
@@ -382,7 +379,7 @@ UMAP <- ggplot(pD.RB6, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB6.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_RB6.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.RB6)
@@ -403,7 +400,7 @@ UMAP <- ggplot(pD.RB7, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB7.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_RB7.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.RB7)
@@ -424,7 +421,7 @@ UMAP <- ggplot(pD.RB8, mapping=aes(x=UMAP1, y=UMAP2, color=Sample)) +
     theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 UMAP
-pdf("../../data/Downstream_graphs/Samples/Umap_sample_RB8.pdf", width=10, height=8)
+pdf("../../data/Supp_Fig_6/Supp_Fig_6a_RB8.pdf", width=10, height=8)
 UMAP
 dev.off()
 rm(pD.RB8)

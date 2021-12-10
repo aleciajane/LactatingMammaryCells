@@ -184,42 +184,10 @@ pD.ordered$LPScore =metaData$PublishedLP1
 pD.ordered$HRScore =metaData$PublishedHR1
 pD.ordered$StromScore =metaData$PublishedSC1
 ```
-**Fig 4a iv**
-*Replotting Basal scores*
-```{r}
-Basal <- ggplot(pD.ordered, aes(x=Identity, y=BasalScore, fill=Identity)) +
-    geom_jitter(aes(color=Sample)) +
-    geom_violin(draw_quantiles=0.5) +
-    ylab("Basal score") +
-    ggtitle("Overall_BasalScore") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(colours.classes,classes)) + scale_color_manual(values=setNames(colour.names,sample.set))
-Basal
-pdf("../../data/Fig_4/Fig_4_a_iv.pdf", width=10, height=6)
-Basal
-dev.off()
-```
-**Fig 4a ii**
-*Replotting LP scores*
-```{r}
-LP <- ggplot(pD.ordered, aes(x=Identity, y=LPScore, fill=Identity)) +
-    geom_jitter(aes(color=Sample)) +
-    geom_violin(draw_quantiles=0.5) +
-    ylab("LP score") +
-    ggtitle("Overall_LPScore") +
-    geom_hline(yintercept=0, linetype="dashed", color="black") +
-    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
-    scale_fill_manual(values=setNames(colours.classes,classes)) + scale_color_manual(values=setNames(colour.names,sample.set))
-LP
+***Fig 4a***
+*Violin plots of the mammary cell scores for either i) hormone responsive (HR, mature luminal), ii) luminal progenitor (LP) iii) stromal or iv) myoepithelial cells across the major cell clusters identified in this study.*
 
-pdf("../../data/Fig_4/Fig_4_a_ii.pdf", width=10, height=6)
-LP
-dev.off()
-```
-**Fig 4a i**
+**Fig 4ai**
 *Replotting HR scores*
 ```{r}
 HR <- ggplot(pD.ordered, aes(x=Identity, y=HRScore, fill=Identity)) +
@@ -235,6 +203,24 @@ HR
 
 pdf("../../data/Fig_4/Fig_4_a_i.pdf", width=10, height=6)
 HR
+dev.off()
+```
+**Fig 4aii**
+*Replotting LP scores*
+```{r}
+LP <- ggplot(pD.ordered, aes(x=Identity, y=LPScore, fill=Identity)) +
+    geom_jitter(aes(color=Sample)) +
+    geom_violin(draw_quantiles=0.5) +
+    ylab("LP score") +
+    ggtitle("Overall_LPScore") +
+    geom_hline(yintercept=0, linetype="dashed", color="black") +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
+    scale_fill_manual(values=setNames(colours.classes,classes)) + scale_color_manual(values=setNames(colour.names,sample.set))
+LP
+
+pdf("../../data/Fig_4/Fig_4_a_ii.pdf", width=10, height=6)
+LP
 dev.off()
 ```
 **Fig 4a iii**
@@ -253,6 +239,23 @@ Strom
 
 pdf("../../data/Fig_4/Fig_4_a_iii.pdf", width=10, height=6)
 Strom 
+dev.off()
+```
+**Fig 4aiv**
+*Replotting Basal scores*
+```{r}
+Basal <- ggplot(pD.ordered, aes(x=Identity, y=BasalScore, fill=Identity)) +
+    geom_jitter(aes(color=Sample)) +
+    geom_violin(draw_quantiles=0.5) +
+    ylab("Basal score") +
+    ggtitle("Overall_BasalScore") +
+    geom_hline(yintercept=0, linetype="dashed", color="black") +
+    theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
+    scale_fill_manual(values=setNames(colours.classes,classes)) + scale_color_manual(values=setNames(colour.names,sample.set))
+Basal
+pdf("../../data/Fig_4/Fig_4_a_iv.pdf", width=10, height=6)
+Basal
 dev.off()
 ```
 *Saving session info*

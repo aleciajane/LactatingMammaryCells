@@ -107,8 +107,8 @@ colData(sce.sub)$UMAP2.sub <- UMAP$V2
 
 saveRDS(sce.hvg.sub,file="../../data/sce_immunesub.rds")
 ```
-**Fig 3c**
-*UMAP coloured by samples*
+***Fig 3c***
+*Sub-setting and re-clustering of IM cells revealed that both myeloid and lymphocytic lineages were sequenced from both NMC and LMCs.*
 ```{r}
 #Sample colours
 sample.set <- c("HMC1", "HMC2", "HMC3","HMC4", "HMC2B","HMC5","HMC6","HMC7","HMC8", "HMC9","RB1", "RB2","RB3","RB4","RB5","RB6","RB7", "RB8")

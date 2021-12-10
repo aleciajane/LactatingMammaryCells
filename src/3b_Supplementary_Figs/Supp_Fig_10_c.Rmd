@@ -1,5 +1,5 @@
 ---
-title: "Fig2c"
+title: "Supp_Fig_10_c"
 author: "Alecia-Jane Twigger"
 date: "`r Sys.Date()`"
 output:
@@ -51,8 +51,8 @@ dim(downgenes) #1640
 ndown <- 0.05*nrow(downgenes)
 ndown #82
 ```
-**Supp Fig 7ci**
-*GO term analysis of upregulated genes with biological process*
+***Supp Fig 10ci***
+*The top 10 biological process gene ontology pathways that were associated with genes significantly differentially expressed that were either upregulated in LC1*
 ```{r}
 #subset data frame for upgenes
 upgenes <- sig.genes[order(-sig.genes$logFC),]
@@ -123,10 +123,10 @@ q <- ggplot(allRes[1:10,],
       theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_fill_gradientn(colours= c("orchid","plum1"))
 q
-ggsave(filename="../../data/RB_HMC_merged/Supp_Fig_7/Fig_7cii.pdf",width=6,height=3)
+ggsave(filename="../../data/RB_HMC_merged/Supp_Fig_10/Fig_10cii.pdf",width=6,height=3)
 ```
-**Supp Fig 7cii**
-*GO term analysis of downregulated genes with biological process*
+***Supp Fig 10cii***
+*The top 10 biological process gene ontology pathways that were associated with genes significantly differentially expressed that were either upregulated in LC2 *
 ```{r}
 downgenes <- sig.genes[order(sig.genes$logFC),]
 downgenes <- downgenes[1:ndown,]
@@ -201,7 +201,7 @@ q <- ggplot(allRes[1:10,],
       theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + scale_fill_gradientn(colours= c("slateblue2","lightgray"))
 q
-ggsave(filename="../../data/Supp_Fig_7/Fig_7ci.pdf",width=9,height=3)
+ggsave(filename="../../data/Supp_Fig_10/Fig_10ci.pdf",width=9,height=3)
 ```
 *Saving session info*
 ```{r}
